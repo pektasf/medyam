@@ -1,6 +1,7 @@
 """
 Eski Usul AI Studio — Video Engine Package
 """
+from app.video_engine.scene_schema import StudioScene, SceneAssetMetadata
 from app.video_engine.timeline_builder import TimelineProject, build_timeline_from_scenes
 from app.video_engine.scene_processor import process_scene_clip
 from app.video_engine.audio_mixer import mix_audio_track

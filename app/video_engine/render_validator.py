@@ -28,8 +28,19 @@ class RenderQAResult:
     errors: list[str]
     warnings: list[str]
 
+    @property
+    def resolution(self) -> str:
+        return f"{self.width}x{self.height}"
+
+    @property
+    def corruption_detected(self) -> bool:
+        return self.is_corrupt
+
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        d["resolution"] = self.resolution
+        d["corruption_detected"] = self.corruption_detected
+        return d
 
 
 async def validate_video_render(ffmpeg_bin: str, video_path: Path) -> RenderQAResult:

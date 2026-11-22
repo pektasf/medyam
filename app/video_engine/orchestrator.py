@@ -15,7 +15,7 @@ from app.video_engine.timeline_builder import build_timeline_from_scenes
 from app.video_engine.scene_processor import process_scene_clip
 from app.video_engine.transition_engine import render_merged_video_with_transitions
 from app.video_engine.audio_mixer import mix_audio_track
-from app.video_engine.subtitle_renderer import generate_srt_content, build_subtitle_filter
+from app.video_engine.subtitle_renderer import generate_srt_content, build_subtitle_filter, is_arabic_text
 from app.video_engine.render_validator import validate_video_render
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -202,7 +202,8 @@ async def assemble_smart_video(
 
     vf_filters = []
     if burn_subtitles and srt_path.exists() and srt_path.stat().st_size > 0:
-        vf_filters.append(build_subtitle_filter(srt_path, preset="bottom_safe"))
+        is_ar = any(is_arabic_text(sc.get("on_screen_text") or sc.get("narration") or "") for sc in scenes)
+        vf_filters.append(build_subtitle_filter(srt_path, preset="bottom_safe", is_arabic=is_ar))
 
     cmd = [ffmpeg, "-y", *inputs]
     if vf_filters:
