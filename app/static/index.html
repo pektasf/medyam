@@ -407,13 +407,23 @@
             <!-- Kolon 1: Brief & Sahneler Havuzu (Scene Bin) -->
             <div class="col-scene-bin">
               
-              <!-- Hızlı AI Video Üretim Dock'u -->
+              <!-- Hızlı AI Video Üretim & Creatify Modeli Dock'u -->
               <div class="editor-brief-dock">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                  <span style="font-size:11.5px;font-weight:700;color:var(--text-primary);letter-spacing:0.5px;">✦ YENİ VİDEO ÜRET</span>
-                  <span class="badge" style="font-size:9.5px;background:#1E1B4B;color:#818CF8;border-color:#3730A3;">AI Agents</span>
+                  <span style="font-size:11.5px;font-weight:700;color:var(--text-primary);letter-spacing:0.5px;">✦ AI İÇERİK ÜRETİCİ</span>
+                  <div style="display:flex;gap:4px;">
+                    <span class="badge" style="font-size:9px;background:#1E1B4B;color:#818CF8;border-color:#3730A3;">Creatify & CreatOK</span>
+                  </div>
                 </div>
-                <input id="editor-brief-topic" class="input-text" style="font-size:12px;padding:7px 10px;margin-bottom:6px;" placeholder="Video konusu / çekirdek fikir...">
+
+                <!-- Mod Seçimi: Hızlı Ajan Üretimi vs Creatify 3'lü Hook Sihirbazı -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-mode-quick" style="font-size:10px;padding:4px;" onclick="switchProductionMode('direct')">⚡ Hızlı Ajan</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="btn-mode-creatify" style="font-size:10px;padding:4px;" onclick="switchProductionMode('creatify')">🎯 3'lü Hook Varyasyonu</button>
+                </div>
+
+                <input id="editor-brief-topic" class="input-text" style="font-size:12px;padding:7px 10px;margin-bottom:6px;" placeholder="Video konusu veya çekirdek fikir...">
+                
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
                   <select id="editor-brief-language" class="input-select" style="font-size:11.5px;padding:5px 8px;">
                     <option value="tr" selected>Türkçe (tr-TR)</option>
@@ -426,9 +436,21 @@
                     <option value="45">45 sn (Geniş)</option>
                   </select>
                 </div>
-                <button id="btn-editor-start-agent" class="btn btn-indigo btn-sm" style="width:100%;font-weight:600;display:flex;justify-content:center;align-items:center;gap:6px;" onclick="startStudioQuickProduction()">
-                  <span>✦ AI Ajanlarıyla Üret</span>
-                </button>
+
+                <!-- Doğrudan Üretim Butonu -->
+                <div id="dock-direct-actions">
+                  <button id="btn-editor-start-agent" class="btn btn-indigo btn-sm" style="width:100%;font-weight:600;display:flex;justify-content:center;align-items:center;gap:6px;" onclick="startStudioQuickProduction()">
+                    <span>✦ AI Ajanlarıyla Üret</span>
+                  </button>
+                </div>
+
+                <!-- Creatify 3'lü Hook Sihirbazı Butonu & Varyasyon Kartları -->
+                <div id="dock-creatify-actions" style="display:none;">
+                  <button id="btn-gen-variations" class="btn btn-indigo btn-sm" style="width:100%;font-weight:600;display:flex;justify-content:center;align-items:center;gap:6px;background:linear-gradient(135deg, #FF0050, #7928CA);" onclick="generateHookVariations()">
+                    <span>🎯 3 Viral Hook Varyasyonu Üret</span>
+                  </button>
+                  <div id="creatify-variations-container" style="margin-top:8px;display:none;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;"></div>
+                </div>
 
                 <!-- Canlı Ajan Üretim İlerleme Çubuğu -->
                 <div id="editor-agent-progress-box" style="display:none;margin-top:8px;padding:8px;background:rgba(79,70,229,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:6px;">

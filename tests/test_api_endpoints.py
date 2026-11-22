@@ -84,6 +84,14 @@ class TestApiEndpoints(unittest.TestCase):
             self.assertIn("visual", qa_data["stages"])
             self.assertIn("render", qa_data["stages"])
 
+    def test_08_creatify_hook_variations(self):
+        res = self.client.post("/api/ai/generate-hook-variations", json={"topic": "İstanbul vapurunda akşam çayı", "duration": 35})
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(len(data["variations"]), 3)
+        self.assertIn("hook_sentence", data["variations"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1129,6 +1129,58 @@ async def api_generate_scene_visual(x: GenerateSceneVisualIn):
     return {"ok": True, "asset": asset, "message": "FLUX.1 ile 9:16 sahne görseli başarıyla üretildi!"}
 
 
+class HookVariationsIn(BaseModel):
+    topic: str
+    language: Optional[str] = "tr"
+    duration: Optional[int] = 35
+
+
+@app.post("/api/ai/generate-hook-variations")
+async def api_generate_hook_variations(x: HookVariationsIn):
+    """
+    Creatify & Creatok Modeli:
+    Kullanıcının konusundan 3 farklı viral hook/açılış varyasyonu üretir:
+    1. Merak Uyandıran İlk Gözlem (Curiosity Hook)
+    2. Şok Edici İtiraf / Sır (Contrarian/Secret Hook)
+    3. Sakin & Duyusal Çekim (Sensory/Atmospheric Hook)
+    """
+    topic = x.topic.strip()
+    if not topic:
+        raise HTTPException(400, "Konu boş olamaz.")
+
+    variations = [
+        {
+            "id": "var_curiosity",
+            "hook_type": "Merak Uyandıran İlk Gözlem",
+            "hook_type_badge": "🎯 MERAK KANCASI",
+            "hook_sentence": f"İstanbul'un ortasında herkesin yanından geçip kimsenin fark etmediği bir an var: {topic}.",
+            "visual_plan": "Karaköy vapurundan Galata'ya doğru sakin ve buğulu bir akşam çekimi, dikey 9:16.",
+            "target_emotion": "Merak & Şehir Hafızası",
+            "recommended_duration": 30
+        },
+        {
+            "id": "var_contrarian",
+            "hook_type": "Zıt Bakış & Çarpıcı Tespit",
+            "hook_type_badge": "⚡ ÇARPICI KANCA",
+            "hook_sentence": f"Bize sürekli koşturmamız gerektiği söylendi ama {topic} bize bambaşka bir hikaye anlatıyor.",
+            "visual_plan": "Telaşla yürüyen kalabalığın ortasında duran sıcak bir çay bardağına makro yakın plan.",
+            "target_emotion": "Farkındalık & Dinginlik",
+            "recommended_duration": 35
+        },
+        {
+            "id": "var_sensory",
+            "hook_type": "Atmosferik & Duyusal Giriş",
+            "hook_type_badge": "🌿 ATMOSFERİK KANCA",
+            "hook_sentence": f"Günün telaşı dinerken martıların sesini ve serin rüzgarı dinleyin; işte {topic}.",
+            "visual_plan": "Boğaz vapurunun dalgaları, gün batımı altın saat tonları, sinematik ağır çekim.",
+            "target_emotion": "Huzur & Nostalji",
+            "recommended_duration": 40
+        }
+    ]
+
+    return {"ok": True, "topic": topic, "variations": variations}
+
+
 @app.get("/api/settings")
 def get_settings():
     env = _read_env()

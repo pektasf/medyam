@@ -981,6 +981,82 @@ html, body {
   font-family: var(--font-sans);
 }
 
+/* ==================== CREATIFY & CREATOK ALTYAZI ŞABLONLARI ==================== */
+.canvas-live-input[data-style="tiktok_yellow"] {
+  color: #FFFF00 !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.85);
+  font-family: var(--font-sans);
+}
+
+.canvas-live-input[data-style="minimal_box"] {
+  color: #FFFFFF !important;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-shadow: none;
+  font-family: var(--font-sans);
+}
+
+.canvas-live-input[data-style="neon_glow"] {
+  color: #E0E7FF !important;
+  font-weight: 700;
+  text-shadow: 0 0 8px #8B5CF6, 0 0 16px #6366F1, 0 2px 4px #000;
+  font-family: var(--font-sans);
+}
+
+.canvas-live-input[data-style="cinematic"] {
+  color: #F3F4F6 !important;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  font-family: serif, 'Times New Roman', Times;
+}
+
+/* ==================== CREATIFY HOOK VARYASYON KARTLARI ==================== */
+.variation-card {
+  background: #141722;
+  border: 1px solid #2D3344;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.variation-card:hover {
+  background: #191E2D;
+  border-color: #6366F1;
+  box-shadow: 0 3px 12px rgba(99, 102, 241, 0.2);
+}
+
+.variation-card-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: #A5B4FC;
+  font-family: var(--font-mono);
+}
+
+.variation-card-sentence {
+  font-size: 11px;
+  font-weight: 600;
+  color: #FFFFFF;
+  line-height: 1.35;
+}
+
+.variation-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 /* ==================== TIKTOK GERÇEKÇİ ARAYÜZ KATMANI ==================== */
 .canvas-tiktok-overlay {
   position: absolute;

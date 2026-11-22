@@ -337,10 +337,21 @@ function renderEditorScenesList() {
     const text = sc.on_screen_text || sc.text || sc.narration || '';
     const assetTag = sc.asset_filename ? `<div style="margin-top:4px;"><span class="badge badge-green" style="font-size:9.5px;">🎬 ${esc(sc.asset_filename)}</span></div>` : '';
 
+    // Creatify & CreatOK Sahne Rolü Rozeti (Hook - Hikaye - CTA)
+    let roleBadge = '<span class="badge" style="background:#1E1B4B;color:#A5B4FC;border-color:#4F46E5;font-size:8.5px;">💡 HİKAYE</span>';
+    if (idx === 0) {
+      roleBadge = '<span class="badge" style="background:#78350F;color:#FDE68A;border-color:#D97706;font-size:8.5px;">🎯 HOOK (0-3s)</span>';
+    } else if (idx === scenes.length - 1 && scenes.length > 1) {
+      roleBadge = '<span class="badge" style="background:#064E3B;color:#6EE7B7;border-color:#059669;font-size:8.5px;">🚀 CTA ÇAĞRI</span>';
+    }
+
     return `
       <div class="scene-card-item ${isActive ? 'selected' : ''}" onclick="selectScene(${idx})">
         <div class="scene-card-top">
-          <span>SAHNE ${idx + 1}</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span>SAHNE ${idx + 1}</span>
+            ${roleBadge}
+          </div>
           <span style="font-family:var(--font-mono);">${esc(timeCode)}</span>
         </div>
         <div class="scene-card-visual">${esc(visual)}</div>
@@ -398,6 +409,16 @@ function renderActiveSceneInspector() {
         <div class="field-group">
           <label class="field-label">Ekranda Görünen Metin (On-Screen)</label>
           <input id="insp-screen-text" class="input-text" value="${esc(sc.on_screen_text || sc.text || '')}" placeholder="TikTok ekranında belirecek başlık..." oninput="onInspectorInput('on_screen_text', this.value)">
+        </div>
+
+        <div class="field-group" style="margin-top:8px;">
+          <label class="field-label">TikTok Altyazı Stili (Creatify & CreatOK Presets)</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;">
+            <button type="button" class="btn btn-ghost btn-sm" style="font-size:9.5px;padding:4px;border:1px solid #374151;color:#FFFF00;font-weight:700;" onclick="setCaptionStyle('tiktok_yellow')">🟡 TikTok Sarı Bold</button>
+            <button type="button" class="btn btn-ghost btn-sm" style="font-size:9.5px;padding:4px;border:1px solid #374151;color:#FFFFFF;" onclick="setCaptionStyle('minimal_box')">⚪ Minimal Kutu</button>
+            <button type="button" class="btn btn-ghost btn-sm" style="font-size:9.5px;padding:4px;border:1px solid #374151;color:#C084FC;" onclick="setCaptionStyle('neon_glow')">🟣 Neon Glow</button>
+            <button type="button" class="btn btn-ghost btn-sm" style="font-size:9.5px;padding:4px;border:1px solid #374151;color:#E5E7EB;font-family:serif;" onclick="setCaptionStyle('cinematic')">🎬 Sinematik</button>
+          </div>
         </div>
 
         <div class="field-group" style="margin-top:10px;">
@@ -496,6 +517,111 @@ function renderActiveSceneInspector() {
 
   container.innerHTML = contentHtml;
 }
+
+window.setCaptionStyle = (styleName) => {
+  const canvasInput = $('#canvas-on-screen-input');
+  if (canvasInput) {
+    canvasInput.setAttribute('data-style', styleName);
+  }
+  if (currentEditorScriptData && currentEditorScriptData.scenes[currentActiveSceneIndex]) {
+    currentEditorScriptData.scenes[currentActiveSceneIndex].caption_style = styleName;
+    markEditorDirty();
+  }
+};
+
+window.switchProductionMode = (mode) => {
+  const directBox = $('#dock-direct-actions');
+  const creatifyBox = $('#dock-creatify-actions');
+  const btnDirect = $('#btn-mode-quick');
+  const btnCreatify = $('#btn-mode-creatify');
+
+  if (mode === 'creatify') {
+    if (directBox) directBox.style.display = 'none';
+    if (creatifyBox) creatifyBox.style.display = 'block';
+    if (btnDirect) btnDirect.className = 'btn btn-ghost btn-sm';
+    if (btnCreatify) btnCreatify.className = 'btn btn-secondary btn-sm';
+  } else {
+    if (directBox) directBox.style.display = 'block';
+    if (creatifyBox) creatifyBox.style.display = 'none';
+    if (btnDirect) btnDirect.className = 'btn btn-secondary btn-sm';
+    if (btnCreatify) btnCreatify.className = 'btn btn-ghost btn-sm';
+  }
+};
+
+let cachedHookVariations = [];
+
+window.generateHookVariations = async () => {
+  const topicInput = $('#editor-brief-topic');
+  const topic = (topicInput?.value || '').trim();
+  if (!topic) {
+    toast('Lütfen önce bir video konusu yazın.', 'warning');
+    topicInput?.focus();
+    return;
+  }
+
+  const container = $('#creatify-variations-container');
+  const btn = $('#btn-gen-variations');
+  if (btn) btn.disabled = true;
+  if (container) {
+    container.style.display = 'flex';
+    container.innerHTML = '<div style="font-size:11px;color:#A5B4FC;padding:8px 0;text-align:center;">⚡ 3 Farklı Viral Hook Varyasyonu Üretiliyor…</div>';
+  }
+
+  try {
+    const res = await api('/api/ai/generate-hook-variations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: topic,
+        language: $('#editor-brief-language')?.value || 'tr',
+        duration: parseInt($('#editor-brief-duration')?.value || '35')
+      })
+    });
+
+    if (res.ok && res.variations) {
+      cachedHookVariations = res.variations;
+      container.innerHTML = res.variations.map((v, i) => `
+        <div class="variation-card" onclick="selectHookVariation(${i})">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="variation-card-badge">${esc(v.hook_type_badge)}</span>
+            <span class="badge badge-green" style="font-size:8.5px;">Seç ↗</span>
+          </div>
+          <div class="variation-card-sentence">“${esc(v.hook_sentence)}”</div>
+          <div class="variation-card-meta">
+            <span>🎭 ${esc(v.target_emotion)}</span>
+            <span>⏱️ ${v.recommended_duration}s</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    if (container) container.innerHTML = `<div style="font-size:11px;color:var(--status-danger);">Hata: ${esc(err.message)}</div>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
+
+window.selectHookVariation = async (index) => {
+  const v = cachedHookVariations[index];
+  if (!v) return;
+
+  toast(`🎯 "${v.hook_type}" seçildi. Kanca stüdyoya uygulanıyor…`, 'info');
+  if (currentEditorScriptData && currentEditorScriptData.scenes && currentEditorScriptData.scenes.length > 0) {
+    currentEditorScriptData.scenes[0].on_screen_text = v.hook_sentence;
+    currentEditorScriptData.scenes[0].text = v.hook_sentence;
+    currentEditorScriptData.scenes[0].narration = v.hook_sentence;
+    currentEditorScriptData.scenes[0].visual = v.visual_plan;
+    currentEditorScriptData.scenes[0].shot = v.visual_plan;
+    markEditorDirty();
+    renderEditorScenesList();
+    renderActiveSceneInspector();
+    updateMockupPreview();
+    toast('✓ Hook sahneye başarıyla uygulandı!', 'success');
+  } else {
+    $('#editor-brief-topic').value = v.hook_sentence;
+    startStudioQuickProduction();
+  }
+};
 
 // ------------------------------------------------------------------ SÜRÜKLENEBİLİR CANLI METİN & TIKTOK OVERLAY -------------------
 window.setCanvasTextY = (pct) => {
@@ -792,6 +918,16 @@ function updateMockupPreview() {
 
   if ($('#canvas-on-screen-input')) {
     $('#canvas-on-screen-input').value = sc ? (sc.on_screen_text || sc.text || sc.narration || '') : '';
+    const capStyle = (sc && sc.caption_style) ? sc.caption_style : 'tiktok_yellow';
+    $('#canvas-on-screen-input').setAttribute('data-style', capStyle);
+  }
+
+  // Sahneye göre dikey konumu otomatik güncelle
+  if (sc && sc.y_percent) {
+    const box = $('#canvas-live-editor');
+    if (box) box.style.top = `${sc.y_percent}%`;
+    const zoneLabel = sc.y_percent < 35 ? 'Üst' : (sc.y_percent > 65 ? 'Alt Safe' : 'Orta');
+    if ($('#canvas-drag-badge')) $('#canvas-drag-badge').textContent = `${zoneLabel} %${sc.y_percent}`;
   }
 }
 
@@ -805,11 +941,17 @@ function renderTimelineTrack() {
     return;
   }
 
-  container.innerHTML = scenes.map((s, idx) => `
-    <div class="timeline-scene-block ${idx === currentActiveSceneIndex ? 'active' : ''}" style="flex:1;" onclick="selectScene(${idx})">
-      <span>S${idx + 1}: ${esc(s.time || '')}</span>
-    </div>
-  `).join('');
+  container.innerHTML = scenes.map((s, idx) => {
+    let trackRole = '💡 Story';
+    if (idx === 0) trackRole = '🎯 Hook';
+    else if (idx === scenes.length - 1 && scenes.length > 1) trackRole = '🚀 CTA';
+
+    return `
+      <div class="timeline-scene-block ${idx === currentActiveSceneIndex ? 'active' : ''}" style="flex:1;" onclick="selectScene(${idx})">
+        <span>${trackRole} · ${esc(s.time || '')}</span>
+      </div>
+    `;
+  }).join('');
 }
 
 window.addNewScene = () => {
