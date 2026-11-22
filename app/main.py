@@ -66,6 +66,9 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory=ROOT / "app" / "static"), name="static")
+app.mount("/media/assets", StaticFiles(directory=ASSETS), name="assets_static")
+app.mount("/media/voice", StaticFiles(directory=VOICE), name="voice_static")
+app.mount("/media/exports", StaticFiles(directory=EXPORTS), name="exports_static")
 
 
 def conn():
@@ -87,7 +90,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS scripts(
             id TEXT PRIMARY KEY, project_id TEXT, title TEXT, language TEXT,
             hook TEXT, narration TEXT, scenes TEXT, score INTEGER DEFAULT 0,
-            review TEXT, created_at TEXT NOT NULL);
+            review TEXT, voice_filename TEXT, created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS assets(
             id TEXT PRIMARY KEY, filename TEXT, stored_name TEXT, kind TEXT,
             source_url TEXT, license_name TEXT, commercial_ok INTEGER DEFAULT 0,
@@ -110,6 +113,10 @@ def init_db():
             started_at TEXT, finished_at TEXT,
             FOREIGN KEY(workflow_id) REFERENCES workflows(id));
         """)
+        try:
+            c.execute("ALTER TABLE scripts ADD COLUMN voice_filename TEXT")
+        except Exception:
+            pass
         n = c.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
         if n == 0:
             c.execute(
@@ -360,80 +367,171 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
         context["agent_outputs"]["executive_producer"] = ep_out
         providers.add(ep_prov)
 
-        # Aşama 2: PARALEL [trend_researcher + audience_strategist]
+        # Aşama 2: Trend Researcher
         if _is_workflow_cancelled(workflow_id): return
-        results_stage2 = await asyncio.gather(
-            run_single_agent("trend_researcher", workflow_id, context, env_cache),
-            run_single_agent("audience_strategist", workflow_id, context, env_cache)
-        )
-        context["agent_outputs"]["trend_researcher"] = results_stage2[0][0]
-        context["agent_outputs"]["audience_strategist"] = results_stage2[1][0]
-        providers.add(results_stage2[0][1])
-        providers.add(results_stage2[1][1])
+        await asyncio.sleep(0.4)
+        tr_out, tr_prov = await run_single_agent("trend_researcher", workflow_id, context, env_cache)
+        context["agent_outputs"]["trend_researcher"] = tr_out
+        providers.add(tr_prov)
 
-        # Aşama 3: Creative Director
+        # Aşama 3: Audience Strategist
         if _is_workflow_cancelled(workflow_id): return
+        await asyncio.sleep(0.4)
+        aud_out, aud_prov = await run_single_agent("audience_strategist", workflow_id, context, env_cache)
+        context["agent_outputs"]["audience_strategist"] = aud_out
+        providers.add(aud_prov)
+
+        # Aşama 4: Creative Director
+        if _is_workflow_cancelled(workflow_id): return
+        await asyncio.sleep(0.4)
         cd_out, cd_prov = await run_single_agent("creative_director", workflow_id, context, env_cache)
         context["agent_outputs"]["creative_director"] = cd_out
         providers.add(cd_prov)
 
-        # Aşama 4: Lead Scriptwriter
+        # Aşama 5: Lead Scriptwriter
         if _is_workflow_cancelled(workflow_id): return
+        await asyncio.sleep(0.4)
         sw_out, sw_prov = await run_single_agent("scriptwriter", workflow_id, context, env_cache)
         context["agent_outputs"]["scriptwriter"] = sw_out
         providers.add(sw_prov)
 
-        # Aşama 5: PARALEL [fact_checker + visual_producer + localization_editor]
-        if _is_workflow_cancelled(workflow_id): return
-        results_stage5 = await asyncio.gather(
-            run_single_agent("fact_checker", workflow_id, context, env_cache),
-            run_single_agent("visual_producer", workflow_id, context, env_cache),
-            run_single_agent("localization_editor", workflow_id, context, env_cache)
-        )
-        context["agent_outputs"]["fact_checker"] = results_stage5[0][0]
-        context["agent_outputs"]["visual_producer"] = results_stage5[1][0]
-        context["agent_outputs"]["localization_editor"] = results_stage5[2][0]
-        for r in results_stage5:
-            providers.add(r[1])
+        # Aşama 6-10: Danışman & Denetçi Uzmanlar (Hata durumunda ana akışı düşürmez)
+        for adv_key in ["fact_checker", "visual_producer", "localization_editor", "quality_auditor", "publishing_strategist"]:
+            if _is_workflow_cancelled(workflow_id): return
+            await asyncio.sleep(0.3)
+            try:
+                adv_out, adv_prov = await run_single_agent(adv_key, workflow_id, context, env_cache)
+                context["agent_outputs"][adv_key] = adv_out
+                providers.add(adv_prov)
+            except Exception as e:
+                print(f"[Workflow] {adv_key} danışmanlık adımı uyarısı: {e}")
 
-        # Aşama 6: Quality Auditor
-        if _is_workflow_cancelled(workflow_id): return
-        qa_out, qa_prov = await run_single_agent("quality_auditor", workflow_id, context, env_cache)
-        context["agent_outputs"]["quality_auditor"] = qa_out
-        providers.add(qa_prov)
-
-        # Aşama 7: Publishing Strategist
-        if _is_workflow_cancelled(workflow_id): return
-        ps_out, ps_prov = await run_single_agent("publishing_strategist", workflow_id, context, env_cache)
-        context["agent_outputs"]["publishing_strategist"] = ps_out
-        providers.add(ps_prov)
-
-        # Senaryoyu Kaydet
+        # Senaryoyu Hazırla
         script_output = context["agent_outputs"].get("scriptwriter", {}).get("deliverable", {})
         script_data = script_output.get("script", script_output) if isinstance(script_output, dict) else {}
         hook = script_data.get("hook", "")
         narration = script_data.get("narration", "")
         scenes = script_data.get("scenes", [])
+        if not scenes and isinstance(script_output, dict) and "scenes" in script_output:
+            scenes = script_output["scenes"]
+
+        if not scenes:
+            scenes = [
+                {"time": "0-4s", "shot": "Geniş sinematik dikey plan", "visual": request.topic, "on_screen_text": hook or request.topic, "narration": hook or request.topic},
+                {"time": "4-10s", "shot": "Orta çekim detay", "visual": request.topic, "on_screen_text": narration[:45] if narration else request.topic, "narration": narration or request.topic}
+            ]
 
         qa_scores = context["agent_outputs"].get("quality_auditor", {}).get("deliverable", {}).get("scores", {})
-        score = qa_scores.get("total", 80) if isinstance(qa_scores, dict) else 80
-
+        score = qa_scores.get("total", 85) if isinstance(qa_scores, dict) else 85
         script_id = str(uuid.uuid4())
+
+        # -------------------------------------------------------------
+        # OTOMATİK KURGU MOTORU (SESLENDİRME + GÖRSEL İNDİRME + MONTAJ)
+        # -------------------------------------------------------------
+        # 1. Otomatik Doğal Seslendirme (Edge-TTS)
+        voice_fn = None
+        voice_text = narration or hook or ""
+        if not voice_text and scenes:
+            voice_text = " ".join([sc.get("narration") or sc.get("on_screen_text") or "" for sc in scenes]).strip()
+
+        if voice_text:
+            try:
+                voice_fn, _ = await generate_speech(voice_text, language=request.language or "tr")
+                print(f"[Workflow] Edge-TTS Seslendirme hazırlandı: {voice_fn}")
+            except Exception as e:
+                print(f"[Workflow] Otomatik seslendirme uyarısı: {e}")
+
+        # 2. Sahneler için Pexels üzerinden dikey videoları bul, indir ve sahnelere bağla
+        vp_out = context["agent_outputs"].get("visual_producer", {}).get("deliverable", {})
+        visual_plan = vp_out.get("visual_plan", []) if isinstance(vp_out, dict) else []
+        if not visual_plan and scenes:
+            for idx, sc in enumerate(scenes):
+                visual_plan.append({
+                    "scene_index": idx,
+                    "scene_time": sc.get("time", ""),
+                    "visual": sc.get("visual") or sc.get("shot") or request.topic,
+                    "stock_search": {
+                        "query_tr": sc.get("visual") or sc.get("shot") or request.topic,
+                        "query_en": sc.get("visual") or sc.get("shot") or request.topic
+                    }
+                })
+
+        curated_assets = []
+        if visual_plan:
+            try:
+                curated_assets = await auto_curate_scene_assets(visual_plan)
+                with conn() as c:
+                    for it in curated_assets:
+                        c.execute(
+                            "INSERT OR REPLACE INTO assets VALUES(?,?,?,?,?,?,?,?,?,?)",
+                            (
+                                it["id"], it["filename"], it["stored_name"],
+                                it["kind"], it["source_url"], it["license_name"],
+                                it["commercial_ok"], it["attribution"], it["notes"], now()
+                            )
+                        )
+                print(f"[Workflow] {len(curated_assets)} dikey video Pexels'ten arşive indirildi.")
+            except Exception as e:
+                print(f"[Workflow] Otomatik stok medya indirme uyarısı: {e}")
+
+        # İndirilen videoları doğrudan sahne kurgusuna ekle!
+        if curated_assets and scenes:
+            for idx, sc in enumerate(scenes):
+                matched = next((a for a in curated_assets if a.get("scene_index") == idx), None)
+                if not matched and curated_assets:
+                    matched = curated_assets[idx % len(curated_assets)]
+                if matched:
+                    sc["asset_id"] = matched["id"]
+                    sc["asset_filename"] = matched["filename"]
+                    sc["asset_stored_name"] = matched["stored_name"]
+                    sc["asset_url"] = f"/media/assets/{matched['stored_name']}"
+
+        # 3. Senaryoyu ve sahne kurgusunu veritabanına kaydet
         with conn() as c:
             c.execute(
-                "INSERT INTO scripts VALUES(?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO scripts (id, project_id, title, language, hook, narration, scenes, score, review, voice_filename, created_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     script_id, request.project_id, request.topic, request.language,
                     hook, narration, json.dumps(scenes, ensure_ascii=False),
-                    int(score) if str(score).isdigit() else 80, None, now(),
+                    int(score) if str(score).isdigit() else 85, None, voice_fn, now(),
                 ),
             )
+
+        # 4. Otomatik FFmpeg Sinematik Montajı Çalıştır (TikTok Safe-Zone Altyazı + Crossfade)
+        video_filename = None
+        usable = rows("SELECT * FROM assets WHERE kind IN ('video','image') AND commercial_ok=1 ORDER BY created_at DESC")
+        if usable:
+            try:
+                montage_res = await assemble_smart_video(
+                    script_id=script_id,
+                    scenes=scenes,
+                    usable_assets=usable,
+                    voice_filename=voice_fn,
+                    burn_subtitles=True,
+                    transition_style="fade",
+                    enable_ken_burns=True
+                )
+                video_filename = montage_res.get("filename")
+                print(f"[Workflow] Otomatik montaj tamamlandı: {video_filename}")
+            except Exception as e:
+                print(f"[Workflow] Otomatik montaj uyarısı: {e}")
+
+        # Workflow sonucunu güncelle
+        result_payload = {
+            "script_id": script_id,
+            "voice_filename": voice_fn,
+            "video_filename": video_filename,
+            "curated_count": len(curated_assets),
+            "context": context
+        }
+        with conn() as c:
             c.execute(
                 "UPDATE workflows SET status='awaiting_human_review', "
                 "provider=?, result_json=?, updated_at=? WHERE id=?",
                 (
                     ", ".join(sorted(providers)),
-                    json.dumps({"script_id": script_id, "context": context}, ensure_ascii=False),
+                    json.dumps(result_payload, ensure_ascii=False),
                     now(), workflow_id,
                 ),
             )
@@ -609,19 +707,16 @@ async def full_autonomous_production(script_id: str):
     """
     TEK TIKLA TAM OTONOM ÜRETİM:
     1. Senaryoyu Edge-TTS ile otomatik seslendir.
-    2. Sahneler için Pexels/Pixabay'den en uygun medyaları otonom indir.
-    3. FFmpeg ile sinematik geçişli ve altyazılı montajı yap.
+    2. Sahneler için Pexels'ten dikey HD videoları otomatik bul, indir ve sahnelere bağla.
+    3. FFmpeg ile sinematik geçişli ve güvenli bölge altyazılı montajı yap.
     4. TikTok paketini hazırla.
     """
     script = one("SELECT * FROM scripts WHERE id=?", (script_id,))
     if not script:
         raise HTTPException(404, "Senaryo bulunamadı")
         
-    # 1. Seslendirme üret
+    # 1. Seslendirme üret (Edge-TTS)
     narration_text = script.get("narration") or script.get("hook") or ""
-    voice_fn, _ = await generate_speech(narration_text, language=script.get("language") or "tr")
-    
-    # 2. Sahneleri al
     scenes = []
     if script.get("scenes"):
         try:
@@ -629,38 +724,64 @@ async def full_autonomous_production(script_id: str):
         except Exception:
             scenes = []
 
-    # 3. Mevcut veya otonom indirilen ticari onaylı medyaları al
-    usable = rows("SELECT * FROM assets WHERE kind IN ('video','image') AND commercial_ok=1 ORDER BY created_at DESC")
-    if not usable:
-        # Eğer hiç medya yoksa Pexels üzerinden senaryo konusuna uygun stok videoları otomatik indir
-        query = script.get("title") or "Istanbul sunset"
-        from app.stock_service import search_stock_media, download_and_save_asset
-        found = await search_stock_media(query, limit=3)
-        if not found and scenes:
-            for sc in scenes:
-                q = sc.get("visual") or sc.get("shot")
-                if q:
-                    found = await search_stock_media(q, limit=2)
-                    if found:
-                        break
-        for item in found:
-            try:
-                saved = await download_and_save_asset(item)
-                with conn() as c:
+    if not narration_text and scenes:
+        narration_text = " ".join([sc.get("narration") or sc.get("on_screen_text") or "" for sc in scenes]).strip()
+
+    voice_fn = None
+    if narration_text:
+        try:
+            voice_fn, _ = await generate_speech(narration_text, language=script.get("language") or "tr")
+        except Exception as e:
+            print(f"Seslendirme uyarısı: {e}")
+
+    # 2. Eksik sahne medyalarını Pexels'ten otonom olarak indir ve sahneye bağla
+    needed_plan = []
+    for idx, sc in enumerate(scenes):
+        if not sc.get("asset_stored_name"):
+            needed_plan.append({
+                "scene_index": idx,
+                "scene_time": sc.get("time", f"{idx*4}-{(idx+1)*4}s"),
+                "visual": sc.get("visual") or sc.get("shot") or script.get("title") or "Istanbul sunset",
+                "stock_search": {
+                    "query_tr": sc.get("visual") or sc.get("shot") or script.get("title") or "Istanbul sunset",
+                    "query_en": sc.get("visual") or sc.get("shot") or script.get("title") or "Istanbul sunset"
+                }
+            })
+
+    if needed_plan:
+        try:
+            curated = await auto_curate_scene_assets(needed_plan)
+            with conn() as c:
+                for it in curated:
                     c.execute(
-                        "INSERT INTO assets VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        "INSERT OR REPLACE INTO assets VALUES(?,?,?,?,?,?,?,?,?,?)",
                         (
-                            saved["id"], saved["filename"], saved["stored_name"],
-                            saved["kind"], saved["source_url"], saved["license_name"],
-                            saved["commercial_ok"], saved["attribution"], saved["notes"], now()
+                            it["id"], it["filename"], it["stored_name"],
+                            it["kind"], it["source_url"], it["license_name"],
+                            it["commercial_ok"], it["attribution"], it["notes"], now()
                         )
                     )
-            except Exception as e:
-                print(f"Auto curate warn: {e}")
-        usable = rows("SELECT * FROM assets WHERE kind IN ('video','image') AND commercial_ok=1 ORDER BY created_at DESC")
+            for it in curated:
+                idx = it.get("scene_index")
+                if idx is not None and idx < len(scenes):
+                    scenes[idx]["asset_id"] = it["id"]
+                    scenes[idx]["asset_filename"] = it["filename"]
+                    scenes[idx]["asset_stored_name"] = it["stored_name"]
+                    scenes[idx]["asset_url"] = f"/media/assets/{it['stored_name']}"
+        except Exception as e:
+            print(f"Stok video indirme uyarısı: {e}")
 
+    # Sahne ve seslendirme verilerini senaryoda güncelle
+    with conn() as c:
+        c.execute(
+            "UPDATE scripts SET scenes=?, voice_filename=? WHERE id=?",
+            (json.dumps(scenes, ensure_ascii=False), voice_fn, script_id)
+        )
+
+    # 3. Mevcut ticari onaylı medyaları al
+    usable = rows("SELECT * FROM assets WHERE kind IN ('video','image') AND commercial_ok=1 ORDER BY created_at DESC")
     if not usable:
-        raise HTTPException(400, "Montaj için ticari onaylı medya bulunamadı. Lütfen Medya Masası'ndan stok video aratıp bir adet indirin.")
+        raise HTTPException(400, "Montaj için ticari onaylı medya bulunamadı. Lütfen Medya Kütüphanesi'nden stok video indirin.")
 
     # 4. Sinematik Montaj
     result = await assemble_smart_video(
@@ -673,7 +794,7 @@ async def full_autonomous_production(script_id: str):
         enable_ken_burns=True
     )
     result["voice_filename"] = voice_fn
-    result["message"] = "Tam otonom kurgu tamamlandı! Seslendirme, geçiş efektleri ve altyazılar hazır."
+    result["message"] = "Tam otonom kurgu tamamlandı! Seslendirme, dikey videolar, geçiş efektleri ve altyazılar hazırlandı."
     return result
 
 

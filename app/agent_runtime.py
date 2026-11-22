@@ -797,8 +797,8 @@ async def call_specialist(
     env = env_cache if env_cache is not None else _read_env()
     gemini_key = os.getenv("GEMINI_API_KEY") or env.get("GEMINI_API_KEY", "")
     gemini_model = os.getenv("GEMINI_MODEL") or env.get("GEMINI_MODEL", "gemini-2.5-flash")
-    groq_key = os.getenv("GROQ_API_KEY") or env.get("GROQ_API_KEY", "")
-    groq_model = os.getenv("GROQ_MODEL") or env.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+    groq_key = os.getenv("GROQ_KEY") or os.getenv("GROQ_API_KEY") or env.get("GROQ_API_KEY", "")
+    groq_model = os.getenv("GROQ_MODEL") or env.get("GROQ_MODEL", "openai/gpt-oss-20b")
     temperature: float = float(agent.get("temperature", 0.35))
 
     system_header = (
@@ -847,21 +847,26 @@ async def call_specialist(
                     return data, f"Gemini API · {gemini_model}"
             except (httpx.TimeoutException, httpx.HTTPStatusError, KeyError) as exc:
                 last_exc = exc
+                # Gemini 429 Kota aşımı durumunda beklemeden anında Groq motoruna geç
+                if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+                    break
                 if attempt < max_attempts - 1:
                     await asyncio.sleep(2 ** attempt * 2)
 
-    # 2. Öncelik: Groq API (Ultra Hızlı Llama 3.3 70B)
+    # 2. Öncelik: Groq API (Ultra Hızlı Llama / GPT-OSS)
     if groq_key:
         groq_url = "https://api.groq.com/openai/v1/chat/completions"
         groq_headers = {
             "Authorization": f"Bearer {groq_key}",
             "Content-Type": "application/json",
         }
+        groq_sys = (system_header or "") + "\nYou are an AI specialist producing strictly valid JSON output. Respond only in valid json format."
+        groq_user = (user_prompt or "") + "\nEnsure the response is formatted as valid json."
         groq_payload = {
             "model": groq_model,
             "messages": [
-                {"role": "system", "content": system_header},
-                {"role": "user", "content": user_prompt},
+                {"role": "system", "content": groq_sys},
+                {"role": "user", "content": groq_user},
             ],
             "temperature": temperature,
             "response_format": {"type": "json_object"},
@@ -880,44 +885,49 @@ async def call_specialist(
                     return data, f"Groq · {groq_model}"
             except Exception as exc:
                 last_exc = exc
+                wait_time = 2.0 * (attempt + 1)
+                if isinstance(exc, httpx.HTTPStatusError):
+                    print(f"Groq {agent['key']} attempt {attempt} error: {exc.response.status_code}")
+                    if exc.response.status_code == 429:
+                        wait_time = 4.0
                 if attempt < max_attempts - 1:
-                    await asyncio.sleep(2 ** attempt * 2)
+                    await asyncio.sleep(wait_time)
 
-    # 3. Öncelik: Ollama (Yerel)
+    # 3. Öncelik: Ollama (Yalnızca yerel çalıştırılıyorsa)
     base = os.getenv("OLLAMA_BASE_URL") or env.get("OLLAMA_BASE_URL", "http://localhost:11434")
     local_model = os.getenv("OLLAMA_MODEL") or env.get("OLLAMA_MODEL", "qwen2.5:7b")
 
-    for attempt in range(max_attempts):
-        try:
-            async with httpx.AsyncClient(timeout=180) as client:
-                response = await client.post(
-                    base.rstrip("/") + "/api/generate",
-                    json={
-                        "model": local_model,
-                        "prompt": user_prompt,
-                        "stream": False,
-                        "format": "json",
-                        "options": {"temperature": temperature},
-                    },
+    if not gemini_key and not groq_key:
+        for attempt in range(max_attempts):
+            try:
+                async with httpx.AsyncClient(timeout=180) as client:
+                    response = await client.post(
+                        base.rstrip("/") + "/api/generate",
+                        json={
+                            "model": local_model,
+                            "prompt": user_prompt,
+                            "stream": False,
+                            "format": "json",
+                            "options": {"temperature": temperature},
+                        },
+                    )
+                    response.raise_for_status()
+                    raw = response.json().get("response", "")
+                    data = _extract_json(raw)
+                    data.setdefault("summary", "Uzman çıktısı oluşturuldu.")
+                    data.setdefault("deliverable", {})
+                    data.setdefault("warnings", [])
+                    data.setdefault("decision", "review")
+                    return data, f"Ollama · {local_model}"
+            except httpx.ConnectError:
+                raise RuntimeError(
+                    f"{agent['name']}: Yerel Ollama ({base}) çalışmıyor. Lütfen Ollama'yı başlatın."
                 )
-                response.raise_for_status()
-                raw = response.json().get("response", "")
-                data = _extract_json(raw)
-                data.setdefault("summary", "Uzman çıktısı oluşturuldu.")
-                data.setdefault("deliverable", {})
-                data.setdefault("warnings", [])
-                data.setdefault("decision", "review")
-                return data, f"Ollama · {local_model}"
-        except httpx.ConnectError:
-            raise RuntimeError(
-                f"{agent['name']}: Gemini veya Groq API anahtarı geçersiz ve yerel Ollama (localhost:11434) çalışmıyor. "
-                "Lütfen uygulamayı kapatıp start_windows.bat ile yeniden başlatın."
-            )
-        except (httpx.TimeoutException, httpx.HTTPStatusError) as exc:
-            last_exc = exc
-            if attempt < max_attempts - 1:
-                await asyncio.sleep(2 ** attempt * 2)
+            except Exception as exc:
+                last_exc = exc
+                if attempt < max_attempts - 1:
+                    await asyncio.sleep(2 ** attempt * 2)
 
     raise RuntimeError(
-        f"{agent['name']} {max_attempts} denemeden sonra başarısız: {_redact(str(last_exc))}"
+        f"{agent['name']} model çağrısı başarısız oldu: {_redact(str(last_exc))}"
     )

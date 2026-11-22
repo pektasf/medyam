@@ -145,7 +145,18 @@ async def assemble_smart_video(
     clips = []
     for idx in range(total_scenes):
         duration = calibrated_durations[idx]
-        asset_info = usable_assets[idx % len(usable_assets)]
+        
+        # Sahneye özel atanmış videoyu bul, yoksa döngüsel sıradan seç
+        asset_info = None
+        if idx < len(scenes):
+            sc = scenes[idx]
+            if sc.get("asset_stored_name"):
+                asset_info = next((a for a in usable_assets if a["stored_name"] == sc["asset_stored_name"]), None)
+            elif sc.get("asset_id"):
+                asset_info = next((a for a in usable_assets if a["id"] == sc["asset_id"]), None)
+        if not asset_info:
+            asset_info = usable_assets[idx % len(usable_assets)]
+
         src_path = ASSETS / asset_info["stored_name"]
         if not src_path.exists():
             continue

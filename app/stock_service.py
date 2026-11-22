@@ -29,13 +29,14 @@ async def search_pexels_videos(query: str, per_page: int = 5) -> list[dict[str, 
     if not pexels_key:
         return []
     
-    url = f"https://api.pexels.com/videos/search?query={query}&per_page={per_page}&orientation=portrait"
+    url = "https://api.pexels.com/videos/search"
+    params = {"query": query.strip(), "per_page": per_page, "orientation": "portrait"}
     headers = {"Authorization": pexels_key}
     results = []
     
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url, headers=headers)
+            resp = await client.get(url, params=params, headers=headers)
             if resp.status_code == 200:
                 data = resp.json()
                 for v in data.get("videos", []):
@@ -137,21 +138,63 @@ async def download_and_save_asset(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+TR_EN_KEYWORDS = {
+    "vapur": "ferry bosphorus",
+    "boğaz": "bosphorus istanbul",
+    "martı": "seagulls flying",
+    "çay": "tea cup table",
+    "istanbul": "istanbul city",
+    "galata": "galata tower",
+    "karaköy": "karakoy istanbul",
+    "deniz": "sea water calm",
+    "gün batımı": "sunset golden hour",
+    "iskele": "ferry dock",
+    "sokak": "cozy street",
+    "kahve": "coffee cup table",
+    "şehir": "city aerial cinematic"
+}
+
+
 async def auto_curate_scene_assets(visual_plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Yapay Zeka Görsel Küratörü:
-    Visual Producer'ın hazırladığı her sahne için en uygun stok videoları otomatik olarak bulur,
-    indirir ve yerel arşive kaydeder.
+    Her sahne için en uygun dikey stok videoları Pexels üzerinden bulur,
+    otomatik indirir ve arşive kaydeder.
     """
     downloaded_assets = []
     for idx, vp in enumerate(visual_plan):
-        # Arama terimini al (önce İngilizce, yoksa Türkçe)
+        # Arama terimini al (önce İngilizce, yoksa Türkçe veya sahne görsel tanımı)
+        query = ""
         stock_spec = vp.get("stock_search", {})
-        query = stock_spec.get("query_en") or stock_spec.get("query_tr") or "Istanbul peaceful city"
+        if isinstance(stock_spec, dict):
+            query = stock_spec.get("query_en") or stock_spec.get("query_tr") or ""
+        if not query:
+            query = vp.get("visual") or vp.get("shot") or vp.get("query_en") or vp.get("query_tr") or "Istanbul peaceful"
         
         candidates = await search_stock_media(query, limit=3)
+        if not candidates:
+            # Akıllı anahtar kelime eşleşmesi dene
+            q_lower = query.lower()
+            alt_query = None
+            for tr_word, en_word in TR_EN_KEYWORDS.items():
+                if tr_word in q_lower:
+                    alt_query = en_word
+                    break
+            if alt_query:
+                candidates = await search_stock_media(alt_query, limit=3)
+
+        if not candidates and " " in query:
+            # İlk iki kelimeyle dene
+            words = [w for w in query.split() if len(w) > 3]
+            if words:
+                candidates = await search_stock_media(" ".join(words[:2]), limit=3)
+
+        if not candidates:
+            # Genel yüksek estetikli dikey video yedeği
+            fallback_terms = ["istanbul travel cinematic", "sea calm water", "sunset golden hour", "city street portrait"]
+            candidates = await search_stock_media(fallback_terms[idx % len(fallback_terms)], limit=3)
+
         if candidates:
-            # En uygun adayı otomatik seç ve indir
             best_candidate = candidates[0]
             try:
                 saved = await download_and_save_asset(best_candidate)

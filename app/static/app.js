@@ -216,10 +216,18 @@ async function refresh() {
       $('#asset-list').innerHTML = d.assets.length
         ? '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:12px;padding:12px;">' + d.assets.map(a =>
             `<div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:10px;">
+              <div style="height:120px;background:#000;border-radius:var(--radius-xs);overflow:hidden;margin-bottom:8px;position:relative;">
+                ${a.kind === 'video' 
+                  ? `<video src="/media/assets/${esc(a.stored_name)}" style="width:100%;height:100%;object-fit:cover;" muted onmouseover="this.play()" onmouseout="this.pause()"></video>` 
+                  : `<img src="/media/assets/${esc(a.stored_name)}" style="width:100%;height:100%;object-fit:cover;">`}
+              </div>
               <b style="font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.filename)}</b>
               <div style="font-size:10.5px;color:var(--text-muted);margin:4px 0;">${esc(a.kind)} · ${esc(a.license_name)}</div>
               <span class="badge ${a.commercial_ok ? 'badge-green' : 'badge-amber'}">${a.commercial_ok ? '✓ Ticari Onaylı' : '! Lisans Kontrolü'}</span>
-              ${a.source_url ? `<a href="${esc(a.source_url)}" target="_blank" style="display:block;margin-top:6px;font-size:10.5px;color:var(--accent-blue);">Kaynağı Gör ↗</a>` : ''}
+              <div style="display:flex;gap:6px;margin-top:8px;">
+                <button class="btn btn-primary btn-sm" style="flex:1;font-size:10px;" onclick='assignAssetToActiveScene(${JSON.stringify(a).replace(/'/g, "&#39;")})'>🎬 Sahneye Ata</button>
+                ${a.source_url ? `<a href="${esc(a.source_url)}" target="_blank" class="btn btn-ghost btn-sm" style="font-size:10px;">Kaynak ↗</a>` : ''}
+              </div>
              </div>`
           ).join('') + '</div>'
         : '<div class="empty-state">Henüz medya eklenmedi.</div>';
@@ -311,6 +319,7 @@ function renderEditorScenesList() {
     const timeCode = sc.time || `${idx * 4}-${(idx + 1) * 4}s`;
     const visual = sc.visual || sc.shot || 'Görsel plan tanımlanmadı';
     const text = sc.on_screen_text || sc.text || sc.narration || '';
+    const assetTag = sc.asset_filename ? `<div style="margin-top:4px;"><span class="badge badge-green" style="font-size:9.5px;">🎬 ${esc(sc.asset_filename)}</span></div>` : '';
 
     return `
       <div class="scene-card-item ${isActive ? 'selected' : ''}" onclick="selectScene(${idx})">
@@ -320,6 +329,7 @@ function renderEditorScenesList() {
         </div>
         <div class="scene-card-visual">${esc(visual)}</div>
         <div class="scene-card-narration">“${esc(text)}”</div>
+        ${assetTag}
         <div style="display:flex;justify-content:flex-end;margin-top:6px;">
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteScene(${idx})" title="Sahneyi Sil">🗑️ Sil</button>
         </div>
@@ -375,12 +385,31 @@ function renderActiveSceneInspector() {
     </div>
 
     <div class="inspector-section">
-      <div class="inspector-section-title">Görsel / Kamera Planı</div>
+      <div class="inspector-section-title">Görsel / Kamera Planı & Medya</div>
       <div class="field-group">
         <label class="field-label">Görsel Talimatı (Prompt)</label>
         <textarea id="insp-visual" class="input-textarea" rows="2" placeholder="Pexels/Pixabay arama terimi..." oninput="onInspectorInput('visual', this.value)">${esc(sc.visual || sc.shot || '')}</textarea>
       </div>
-      <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;" onclick="searchStockForCurrentScene()">🔍 Bu Sahneye Stok Video Bul</button>
+      <div class="field-group" style="margin-top:8px;">
+        <label class="field-label">Sahneye Kilitli Medya</label>
+        ${sc.asset_stored_name ? `
+          <div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:var(--radius-xs);padding:8px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span class="badge badge-green" style="font-size:10px;">✓ ${esc(sc.asset_filename || sc.asset_stored_name)}</span>
+              <button class="btn btn-ghost btn-sm" style="font-size:10px;color:var(--status-danger);" onclick="removeAssetFromCurrentScene()">🗑️ Kaldır</button>
+            </div>
+            <video src="/media/assets/${esc(sc.asset_stored_name)}" style="width:100%;height:85px;object-fit:cover;border-radius:4px;" muted controls></video>
+          </div>
+        ` : `
+          <div style="font-size:11px;color:var(--text-muted);background:var(--bg-subtle);padding:8px;border-radius:var(--radius-xs);border:1px dashed var(--border-default);margin-bottom:6px;">
+            ⏳ Bu sahneye henüz video atanmadı.
+          </div>
+        `}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+        <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="searchStockForCurrentScene()">🔍 Bu Sahne İçin Pexels'te Video Ara</button>
+        <button class="btn btn-indigo btn-sm" style="width:100%;" onclick="triggerEditorFullProduction()">⚡ Tüm Senaryoyu Otonom Kurgula (Seslendir + Video İndir + Montajla)</button>
+      </div>
     </div>
   `;
 }
@@ -458,10 +487,41 @@ function updateMockupPreview() {
   if (!currentEditorScriptData) return;
   const scenes = currentEditorScriptData.scenes || [];
   const sc = scenes[currentActiveSceneIndex];
+  const videoEl = $('#mockup-video-player');
+  const previewBg = $('#mockup-visual-preview');
 
-  if ($('#mockup-visual-preview')) {
-    $('#mockup-visual-preview').textContent = sc ? (sc.visual || sc.shot || 'Kamera ve görsel plan tanımlanmadı.') : '';
+  if (sc && sc.asset_stored_name) {
+    if (videoEl) {
+      const srcUrl = `/media/assets/${sc.asset_stored_name}`;
+      if (videoEl.getAttribute('data-stored') !== sc.asset_stored_name) {
+        videoEl.src = srcUrl;
+        videoEl.setAttribute('data-stored', sc.asset_stored_name);
+        videoEl.load();
+        videoEl.play().catch(() => {});
+      }
+      videoEl.style.display = 'block';
+    }
+    if (previewBg) {
+      previewBg.style.display = 'none';
+    }
+  } else {
+    if (videoEl) {
+      videoEl.style.display = 'none';
+      videoEl.removeAttribute('data-stored');
+    }
+    if (previewBg) {
+      previewBg.style.display = 'flex';
+      previewBg.innerHTML = sc ? `
+        <div style="padding:16px;text-align:center;">
+          <div style="font-size:26px;margin-bottom:8px;">🎬</div>
+          <div style="font-weight:600;font-size:12px;margin-bottom:4px;color:#fff;">Sahne ${currentActiveSceneIndex + 1}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.7);line-height:1.4;">${esc(sc.visual || sc.shot || 'Kamera ve görsel plan tanımlanmadı.')}</div>
+          <button class="btn btn-secondary btn-sm" style="margin-top:12px;font-size:10px;" onclick="searchStockForCurrentScene()">🔍 Video Bul & Ata</button>
+        </div>
+      ` : 'Sahne seçin';
+    }
   }
+
   if ($('#canvas-on-screen-input')) {
     $('#canvas-on-screen-input').value = sc ? (sc.on_screen_text || sc.text || sc.narration || '') : '';
   }
@@ -784,6 +844,15 @@ function renderWorkflow(w) {
     const narration = sc.narration || '';
     const scenes    = sc.scenes    || [];
 
+    const autoVideoBadge = w.result?.video_filename ? `
+      <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:var(--radius-sm);padding:10px 12px;margin:12px 0;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <b style="color:#065F46;font-size:12px;">🎬 Otonom Kurgu Hazırlandı: ${esc(w.result.video_filename)}</b>
+          <div style="color:#047857;font-size:11px;">Seslendirme tamamlandı, sahnelerin dikey videoları Pexels'ten indirildi ve montajlandı.</div>
+        </div>
+        <button class="btn btn-indigo btn-sm" onclick="showView('reports')">▶ Videoyu İzle & İndir (Video Vault)</button>
+      </div>` : '';
+
     finalReview = `
       <div class="surface-panel" style="margin-top:16px;border-left:3px solid var(--status-success);">
         <div class="panel-head">
@@ -795,11 +864,13 @@ function renderWorkflow(w) {
           ${hook ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">“${esc(hook)}”</div>` : ''}
           ${narration ? `<div class="field-label">SESLENDİRME METNİ</div><p style="font-size:12px;color:var(--text-primary);margin-bottom:14px;">${esc(narration)}</p>` : ''}
           
+          ${autoVideoBadge}
+
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
             <button class="btn btn-primary" onclick="reviewScript('${sId}','approved')">✓ Senaryoyu Onayla</button>
-            <button class="btn btn-secondary" onclick="openScriptInEditor('${sId}')">✍️ 3-Kolon Editörde Düzenle</button>
-            <button class="btn btn-indigo" onclick="triggerFullAutonomous('${sId}', '${w.id}')">⚡ Tek Tıkla Tam Otonom Kurgu</button>
-            <button class="btn btn-secondary" onclick="generateVoice('${sId}')">🎙️ Sadece Seslendir</button>
+            <button class="btn btn-secondary" onclick="openScriptInEditor('${sId}')">✍️ Sahne Editöründe Düzenle</button>
+            <button class="btn btn-indigo" onclick="triggerFullAutonomous('${sId}', '${w.id}')">⚡ Yeniden Otonom Kurgula</button>
+            <button class="btn btn-secondary" onclick="generateVoice('${sId}')">🎙️ Tekrar Seslendir</button>
             <button class="btn btn-danger" onclick="reviewScript('${sId}','revision')">Revizyon İste</button>
           </div>
         </div>
@@ -954,11 +1025,15 @@ async function searchStock() {
       resDiv.innerHTML = '<div class="empty-state">Sonuç bulunamadı. (.env içinde PEXELS_API_KEY tanımlı olduğundan emin olun).</div>';
       return;
     }
-    resDiv.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px;">' + items.map(it => `
-      <div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:8px;">
-        <b style="font-size:11.5px;display:block;">${esc(it.source)} Video</b>
-        <div style="font-size:10.5px;color:var(--text-muted);">${esc(it.author)} · ${it.duration || 0}s</div>
-        <button class="btn btn-primary btn-sm" style="width:100%;margin-top:6px;" onclick='downloadStockItem(${JSON.stringify(it)})'>⬇ Arşive İndir (Ticari Onaylı)</button>
+    resDiv.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:12px;">' + items.map(it => `
+      <div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:10px;">
+        ${it.thumbnail ? `<div style="height:110px;background:#000;border-radius:var(--radius-xs);overflow:hidden;margin-bottom:8px;"><img src="${esc(it.thumbnail)}" style="width:100%;height:100%;object-fit:cover;"></div>` : ''}
+        <b style="font-size:11.5px;display:block;">${esc(it.source)} Dikey Video</b>
+        <div style="font-size:10.5px;color:var(--text-muted);margin:3px 0;">${esc(it.author)} · ${it.duration || 0}s</div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="btn btn-secondary btn-sm" style="flex:1;font-size:10px;" onclick='downloadStockItem(${JSON.stringify(it).replace(/'/g, "&#39;")})'>⬇ Arşive İndir</button>
+          <button class="btn btn-primary btn-sm" style="flex:1;font-size:10px;" onclick='downloadAndAssignStockItem(${JSON.stringify(it).replace(/'/g, "&#39;")})'>🎬 Sahneye Ata</button>
+        </div>
       </div>
     `).join('') + '</div>';
   } catch (err) {
@@ -979,6 +1054,88 @@ window.downloadStockItem = async (it) => {
     refresh();
   } catch (err) {
     toast(`İndirme hatası: ${err.message}`, 'danger');
+  }
+};
+
+window.downloadAndAssignStockItem = async (it) => {
+  toast(`${it.source} videosu indiriliyor ve aktif sahneye atanıyor…`);
+  try {
+    await api('/api/stock/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(it)
+    });
+    
+    // En son eklenen medyayı al
+    const d = await api('/api/dashboard');
+    const newlyAdded = (d.assets || []).find(a => a.source_url === it.page_url) || d.assets[0];
+    if (newlyAdded && currentEditorScriptData && currentEditorScriptData.scenes && currentEditorScriptData.scenes[currentActiveSceneIndex]) {
+      const sc = currentEditorScriptData.scenes[currentActiveSceneIndex];
+      sc.asset_id = newlyAdded.id;
+      sc.asset_filename = newlyAdded.filename;
+      sc.asset_stored_name = newlyAdded.stored_name;
+      sc.asset_url = `/media/assets/${newlyAdded.stored_name}`;
+      markEditorDirty();
+      renderEditorScenesList();
+      renderActiveSceneInspector();
+      updateMockupPreview();
+      toast(`Video Sahne ${currentActiveSceneIndex + 1}'e başarıyla bağlandı ✓`, 'success');
+    }
+    showView('editor');
+    refresh();
+  } catch (err) {
+    toast(`İndirme ve sahneye bağlama hatası: ${err.message}`, 'danger');
+  }
+};
+
+window.assignAssetToActiveScene = (a) => {
+  if (!currentEditorScriptData || !currentEditorScriptData.scenes || !currentEditorScriptData.scenes[currentActiveSceneIndex]) {
+    toast('Önce Sahne Düzenleyici ekranından bir senaryo ve sahne seçin.');
+    showView('editor');
+    return;
+  }
+  const sc = currentEditorScriptData.scenes[currentActiveSceneIndex];
+  sc.asset_id = a.id;
+  sc.asset_filename = a.filename;
+  sc.asset_stored_name = a.stored_name;
+  sc.asset_url = `/media/assets/${a.stored_name}`;
+  markEditorDirty();
+  renderEditorScenesList();
+  renderActiveSceneInspector();
+  updateMockupPreview();
+  toast(`${a.filename} videosu Sahne ${currentActiveSceneIndex + 1}'e kilitlendi ✓`, 'success');
+  showView('editor');
+};
+
+window.removeAssetFromCurrentScene = () => {
+  if (!currentEditorScriptData || !currentEditorScriptData.scenes || !currentEditorScriptData.scenes[currentActiveSceneIndex]) return;
+  const sc = currentEditorScriptData.scenes[currentActiveSceneIndex];
+  delete sc.asset_id;
+  delete sc.asset_filename;
+  delete sc.asset_stored_name;
+  delete sc.asset_url;
+  markEditorDirty();
+  renderEditorScenesList();
+  renderActiveSceneInspector();
+  updateMockupPreview();
+  toast('Sahneden video kaldırıldı.');
+};
+
+window.triggerEditorFullProduction = async () => {
+  if (!currentEditorScriptId) {
+    toast('Lütfen önce bir senaryo seçin.');
+    return;
+  }
+  toast('⚡ Tam otonom üretim başlatıldı: Edge-TTS seslendiriyor, Pexels videoları indiriliyor ve FFmpeg kurgulanıyor…');
+  try {
+    const res = await api(`/api/scripts/${currentEditorScriptId}/full-autonomous-production`, { method: 'POST' });
+    toast(res.message || 'Montaj başarıyla tamamlandı! Video hazır.', 'success');
+    await loadScriptToEditor(currentEditorScriptId);
+    showView('reports');
+    loadStudioReports();
+    refresh();
+  } catch (err) {
+    toast(`Otonom kurgu hatası: ${err.message}`, 'danger');
   }
 };
 
