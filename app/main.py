@@ -1074,9 +1074,59 @@ class SettingsIn(BaseModel):
     gemini_api_key: Optional[str] = ""
     gemini_model: Optional[str] = "gemini-2.5-flash"
     groq_api_key: Optional[str] = ""
-    groq_model: Optional[str] = "openai/gpt-oss-120b"
+    groq_model: Optional[str] = "llama-3.3-70b-versatile"
     pexels_api_key: Optional[str] = ""
     pixabay_api_key: Optional[str] = ""
+    hf_token: Optional[str] = ""
+    hf_llm_model: Optional[str] = "Qwen/Qwen2.5-72B-Instruct"
+    hf_image_model: Optional[str] = "black-forest-labs/FLUX.1-schnell"
+
+
+class GenerateSceneVisualIn(BaseModel):
+    prompt: str
+    scene_index: Optional[int] = 0
+    script_id: Optional[str] = None
+
+
+@app.post("/api/ai/generate-scene-visual")
+async def api_generate_scene_visual(x: GenerateSceneVisualIn):
+    from app.hf_service import generate_hf_scene_visual
+    prompt = x.prompt.strip()
+    if not prompt:
+        raise HTTPException(400, "Görsel talimatı (prompt) boş olamaz.")
+    
+    asset = await generate_hf_scene_visual(prompt)
+    if not asset:
+        raise HTTPException(502, "Hugging Face (FLUX.1-schnell) modelinden görsel üretilemedi. Model meşgul veya bağlantı zaman aşımına uğramış olabilir.")
+    
+    with conn() as c:
+        c.execute(
+            "INSERT OR REPLACE INTO assets (id, filename, stored_name, kind, source_url, license_name, commercial_ok, attribution, notes, asset_type, metadata_json, created_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                asset["id"], asset["filename"], asset["stored_name"],
+                asset["kind"], asset["source_url"], asset["license_name"],
+                asset["commercial_ok"], asset["attribution"], asset["notes"],
+                "ai_image", json.dumps({"generator": "FLUX.1-schnell"}, ensure_ascii=False), now()
+            )
+        )
+        if x.script_id:
+            row = c.execute("SELECT scenes FROM scripts WHERE id=?", (x.script_id,)).fetchone()
+            if row and row["scenes"]:
+                try:
+                    sc_list = json.loads(row["scenes"])
+                    if 0 <= (x.scene_index or 0) < len(sc_list):
+                        idx = x.scene_index or 0
+                        sc_list[idx]["asset_id"] = asset["id"]
+                        sc_list[idx]["asset_filename"] = asset["filename"]
+                        sc_list[idx]["asset_stored_name"] = asset["stored_name"]
+                        sc_list[idx]["asset_url"] = f"/media/assets/{asset['stored_name']}"
+                        sc_list[idx]["is_image"] = True
+                        c.execute("UPDATE scripts SET scenes=? WHERE id=?", (json.dumps(sc_list, ensure_ascii=False), x.script_id))
+                except Exception as err:
+                    print(f"Sahne güncelleme hatası: {err}")
+
+    return {"ok": True, "asset": asset, "message": "FLUX.1 ile 9:16 sahne görseli başarıyla üretildi!"}
 
 
 @app.get("/api/settings")
@@ -1097,11 +1147,15 @@ def get_settings():
         "gemini_model": env.get("GEMINI_MODEL", "gemini-2.5-flash"),
         "groq_api_key": mask("GROQ_API_KEY"),
         "groq_api_key_configured": bool(env.get("GROQ_API_KEY")),
-        "groq_model": env.get("GROQ_MODEL", "openai/gpt-oss-120b"),
+        "groq_model": env.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
         "pexels_api_key": mask("PEXELS_API_KEY"),
         "pexels_api_key_configured": bool(env.get("PEXELS_API_KEY")),
         "pixabay_api_key": mask("PIXABAY_API_KEY"),
         "pixabay_api_key_configured": bool(env.get("PIXABAY_API_KEY")),
+        "hf_token": mask("HF_TOKEN"),
+        "hf_token_configured": bool(env.get("HF_TOKEN")),
+        "hf_llm_model": env.get("HF_LLM_MODEL", "Qwen/Qwen2.5-72B-Instruct"),
+        "hf_image_model": env.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"),
         "ffmpeg_installed": is_ffmpeg_available(),
         "system_status": "optimal"
     }
@@ -1128,18 +1182,28 @@ def update_settings(x: SettingsIn):
     if x.pixabay_api_key and not x.pixabay_api_key.startswith("***"):
         existing["PIXABAY_API_KEY"] = x.pixabay_api_key.strip()
 
+    if x.hf_token and not x.hf_token.startswith("***"):
+        existing["HF_TOKEN"] = x.hf_token.strip()
+    if x.hf_llm_model:
+        existing["HF_LLM_MODEL"] = x.hf_llm_model.strip()
+    if x.hf_image_model:
+        existing["HF_IMAGE_MODEL"] = x.hf_image_model.strip()
+
     lines = [
         f"# Eski Usul AI Studio Yapılandırması",
         f"GEMINI_API_KEY={existing.get('GEMINI_API_KEY', '')}",
         f"GEMINI_MODEL={existing.get('GEMINI_MODEL', 'gemini-2.5-flash')}",
         f"GROQ_API_KEY={existing.get('GROQ_API_KEY', '')}",
-        f"GROQ_MODEL={existing.get('GROQ_MODEL', 'openai/gpt-oss-120b')}",
+        f"GROQ_MODEL={existing.get('GROQ_MODEL', 'llama-3.3-70b-versatile')}",
         f"OLLAMA_BASE_URL={existing.get('OLLAMA_BASE_URL', 'http://localhost:11434')}",
         f"OLLAMA_MODEL={existing.get('OLLAMA_MODEL', 'qwen2.5:7b')}",
         f"APP_HOST=127.0.0.1",
         f"APP_PORT=8765",
         f"PEXELS_API_KEY={existing.get('PEXELS_API_KEY', '')}",
         f"PIXABAY_API_KEY={existing.get('PIXABAY_API_KEY', '')}",
+        f"HF_TOKEN={existing.get('HF_TOKEN', '')}",
+        f"HF_LLM_MODEL={existing.get('HF_LLM_MODEL', 'Qwen/Qwen2.5-72B-Instruct')}",
+        f"HF_IMAGE_MODEL={existing.get('HF_IMAGE_MODEL', 'black-forest-labs/FLUX.1-schnell')}",
     ]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {"ok": True, "message": "Ayarlar başarıyla kaydedildi ve uygulandı."}

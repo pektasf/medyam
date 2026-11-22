@@ -782,6 +782,25 @@
                 <input type="password" id="cfg-pixabay-key" class="input-text" style="font-family:var(--font-mono);" placeholder="Pixabay API Key">
               </div>
 
+              <div class="field-group">
+                <div class="field-label">
+                  <span>Hugging Face Access Token (HF_TOKEN)</span>
+                  <span id="badge-hf-status" class="badge">Ücretsiz Open-Source</span>
+                </div>
+                <input type="password" id="cfg-hf-token" class="input-text" style="font-family:var(--font-mono);" placeholder="hf_xxxxxxxxxxxx">
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="field-group">
+                  <label class="field-label" for="cfg-hf-llm-model">HF LLM Modeli</label>
+                  <input id="cfg-hf-llm-model" class="input-text" style="font-family:var(--font-mono);font-size:11px;" value="Qwen/Qwen2.5-72B-Instruct">
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="cfg-hf-image-model">HF Görsel Modeli</label>
+                  <input id="cfg-hf-image-model" class="input-text" style="font-family:var(--font-mono);font-size:11px;" value="black-forest-labs/FLUX.1-schnell">
+                </div>
+              </div>
+
               <hr style="border:none;border-top:1px solid var(--border-subtle);margin:14px 0;">
 
               <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Sistem Teşhis Kontrolleri</div>

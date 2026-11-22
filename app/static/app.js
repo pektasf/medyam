@@ -443,7 +443,10 @@ function renderActiveSceneInspector() {
           `}
         </div>
 
-        <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:6px;" onclick="searchStockForCurrentScene()">🔍 Pexels'te Bu Sahne İçin Video Bul</button>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="searchStockForCurrentScene()">🔍 Stok Ara (Pexels & Pixabay)</button>
+          <button class="btn btn-indigo btn-sm" style="flex:1;" id="btn-gen-flux" onclick="generateFluxVisualForCurrentScene()">🎨 FLUX.1 AI Görsel Üret</button>
+        </div>
         <div id="inspector-stock-results" style="margin-top:8px;"></div>
       </div>
     `;
@@ -881,14 +884,111 @@ window.saveCurrentScriptChanges = async (isSilent = false) => {
   }
 };
 
-window.searchStockForCurrentScene = () => {
+window.searchStockForCurrentScene = async () => {
   if (!currentEditorScriptData || !currentEditorScriptData.scenes[currentActiveSceneIndex]) return;
   const sc = currentEditorScriptData.scenes[currentActiveSceneIndex];
-  const query = sc.visual || sc.shot || currentEditorScriptData.title;
-  showView('assets');
-  if ($('#stock-query')) {
-    $('#stock-query').value = query;
-    searchStock();
+  const query = (sc.visual || sc.shot || currentEditorScriptData.title || '').trim();
+  const resContainer = $('#inspector-stock-results');
+  if (!resContainer) return;
+
+  resContainer.innerHTML = '<div style="font-size:11px;color:#A5B4FC;padding:8px 0;">🔍 Pexels ve Pixabay üzerinde dikey medya taranıyor…</div>';
+  try {
+    const items = await api(`/api/stock/search?q=${encodeURIComponent(query)}&limit=6`);
+    if (!items || items.length === 0) {
+      resContainer.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:8px 0;">Uygun stok video bulunamadı. Yanındaki FLUX.1 butonunu kullanarak yapay zekaya ürettirebilirsiniz.</div>';
+      return;
+    }
+    resContainer.innerHTML = `
+      <div style="font-size:10.5px;color:var(--text-muted);margin-bottom:6px;">Bulunan ${items.length} medya:</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:220px;overflow-y:auto;">
+        ${items.map(it => `
+          <div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:4px;padding:4px;display:flex;flex-direction:column;gap:4px;">
+            <div style="position:relative;height:65px;background:#000;border-radius:2px;overflow:hidden;">
+              <img src="${esc(it.thumbnail)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
+              <span class="badge" style="position:absolute;top:2px;left:2px;font-size:8px;background:rgba(0,0,0,0.7);">${esc(it.source)}</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" style="font-size:9.5px;padding:3px;" onclick='attachStockItemToCurrentScene(${JSON.stringify(it).replace(/'/g, "&#39;")})'>+ Sahneye Ata</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (err) {
+    resContainer.innerHTML = `<div style="font-size:11px;color:var(--status-danger);">Arama hatası: ${esc(err.message)}</div>`;
+  }
+};
+
+window.attachStockItemToCurrentScene = async (item) => {
+  if (!currentEditorScriptData || !currentEditorScriptData.scenes[currentActiveSceneIndex]) return;
+  toast(`📥 ${item.source} medyası indiriliyor ve sahneye bağlanıyor…`, 'info');
+  try {
+    const res = await api('/api/stock/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item)
+    });
+    if (res.ok && res.asset) {
+      const sc = currentEditorScriptData.scenes[currentActiveSceneIndex];
+      sc.asset_id = res.asset.id;
+      sc.asset_filename = res.asset.filename;
+      sc.asset_stored_name = res.asset.stored_name;
+      sc.asset_url = `/media/assets/${res.asset.stored_name}`;
+      sc.is_image = res.asset.kind === 'image';
+      markEditorDirty();
+      renderActiveSceneInspector();
+      updateMockupPreview();
+      toast('✓ Medya başarıyla sahneye bağlandı!', 'success');
+    }
+  } catch (err) {
+    toast(`İndirme hatası: ${err.message}`, 'danger');
+  }
+};
+
+window.generateFluxVisualForCurrentScene = async () => {
+  if (!currentEditorScriptData || !currentEditorScriptData.scenes[currentActiveSceneIndex]) return;
+  const sc = currentEditorScriptData.scenes[currentActiveSceneIndex];
+  const promptInput = $('#insp-visual');
+  const prompt = (promptInput?.value || sc.visual || sc.shot || currentEditorScriptData.title || '').trim();
+  if (!prompt) {
+    toast('Lütfen üretmek istediğiniz sahne görsel talimatını (prompt) yazın.', 'warning');
+    promptInput?.focus();
+    return;
+  }
+
+  const btn = $('#btn-gen-flux');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '🎨 FLUX.1 Üretiyor…';
+  }
+  toast('✦ Hugging Face FLUX.1-schnell ile 9:16 sinematik görsel üretiliyor…', 'info');
+
+  try {
+    const res = await api('/api/ai/generate-scene-visual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: prompt,
+        scene_index: currentActiveSceneIndex,
+        script_id: currentEditorScriptId
+      })
+    });
+    if (res.ok && res.asset) {
+      sc.asset_id = res.asset.id;
+      sc.asset_filename = res.asset.filename;
+      sc.asset_stored_name = res.asset.stored_name;
+      sc.asset_url = `/media/assets/${res.asset.stored_name}`;
+      sc.is_image = true;
+      markEditorDirty();
+      renderActiveSceneInspector();
+      updateMockupPreview();
+      toast('✓ FLUX.1 sahne görseli başarıyla üretildi ve sahneye eklendi!', 'success');
+    }
+  } catch (err) {
+    toast(`Görsel üretilemedi: ${err.message}`, 'danger');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🎨 FLUX.1 AI Görsel Üret';
+    }
   }
 };
 
@@ -1449,12 +1549,21 @@ async function loadSettings() {
     }
 
     if ($('#cfg-gemini-model')) $('#cfg-gemini-model').value = s.gemini_model || 'gemini-2.5-flash';
-    if ($('#cfg-groq-model')) $('#cfg-groq-model').value = s.groq_model || 'openai/gpt-oss-120b';
+    if ($('#cfg-groq-model')) $('#cfg-groq-model').value = s.groq_model || 'llama-3.3-70b-versatile';
 
     if ($('#cfg-gemini-key') && s.gemini_api_key) $('#cfg-gemini-key').placeholder = s.gemini_api_key;
     if ($('#cfg-groq-key') && s.groq_api_key) $('#cfg-groq-key').placeholder = s.groq_api_key;
     if ($('#cfg-pexels-key') && s.pexels_api_key) $('#cfg-pexels-key').placeholder = s.pexels_api_key;
     if ($('#cfg-pixabay-key') && s.pixabay_api_key) $('#cfg-pixabay-key').placeholder = s.pixabay_api_key;
+
+    if ($('#cfg-hf-token') && s.hf_token) $('#cfg-hf-token').placeholder = s.hf_token;
+    if ($('#cfg-hf-llm-model')) $('#cfg-hf-llm-model').value = s.hf_llm_model || 'Qwen/Qwen2.5-72B-Instruct';
+    if ($('#cfg-hf-image-model')) $('#cfg-hf-image-model').value = s.hf_image_model || 'black-forest-labs/FLUX.1-schnell';
+    const hfB = $('#badge-hf-status');
+    if (hfB) {
+      hfB.className = 'badge ' + (s.hf_token_configured ? 'badge-green' : '');
+      hfB.textContent = s.hf_token_configured ? '✓ Tanımlı' : 'Ücretsiz Modeller';
+    }
 
   } catch (err) {
     console.warn('Ayarlar yüklenemedi:', err);
@@ -1480,6 +1589,13 @@ window.saveSettings = async (event) => {
 
   const pxKey = $('#cfg-pixabay-key')?.value.trim();
   if (pxKey) payload.pixabay_api_key = pxKey;
+
+  const hfToken = $('#cfg-hf-token')?.value.trim();
+  if (hfToken) payload.hf_token = hfToken;
+  const hfLlm = $('#cfg-hf-llm-model')?.value.trim();
+  if (hfLlm) payload.hf_llm_model = hfLlm;
+  const hfImg = $('#cfg-hf-image-model')?.value.trim();
+  if (hfImg) payload.hf_image_model = hfImg;
 
   try {
     const res = await api('/api/settings', {

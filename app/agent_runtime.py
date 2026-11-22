@@ -1083,7 +1083,38 @@ async def call_specialist(
                 if attempt < max_gemini_attempts - 1:
                     await asyncio.sleep(2 ** attempt * 2)
 
-    # 3. Öncelik: Ollama (Yerel çalıştırılıyorsa)
+    # 3. Öncelik: Hugging Face Serverless Chat Router (Qwen 2.5 72B / Llama 3.3 70B)
+    hf_token = os.getenv("HF_TOKEN") or env.get("HF_TOKEN", "")
+    hf_model = os.getenv("HF_LLM_MODEL") or env.get("HF_LLM_MODEL", "Qwen/Qwen2.5-72B-Instruct")
+    try:
+        hf_url = "https://router.huggingface.co/hf-inference/v1/chat/completions"
+        hf_headers = {"Content-Type": "application/json"}
+        if hf_token:
+            hf_headers["Authorization"] = f"Bearer {hf_token}"
+        hf_payload = {
+            "model": hf_model,
+            "messages": [
+                {"role": "system", "content": (system_header or "") + "\nRespond strictly in valid JSON format."},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": temperature,
+            "max_tokens": 1500,
+            "response_format": {"type": "json_object"}
+        }
+        async with httpx.AsyncClient(timeout=40) as client:
+            res_hf = await client.post(hf_url, headers=hf_headers, json=hf_payload)
+            if res_hf.status_code == 200:
+                raw_hf = res_hf.json()["choices"][0]["message"]["content"]
+                data = _extract_json(raw_hf)
+                data.setdefault("summary", "Uzman çıktısı oluşturuldu.")
+                data.setdefault("deliverable", {})
+                data.setdefault("warnings", [])
+                data.setdefault("decision", "review")
+                return data, f"Hugging Face · {hf_model.split('/')[-1]}"
+    except Exception as exc:
+        last_exc = exc
+
+    # 4. Öncelik: Ollama (Yerel çalıştırılıyorsa)
     base = os.getenv("OLLAMA_BASE_URL") or env.get("OLLAMA_BASE_URL", "http://localhost:11434")
     local_model = os.getenv("OLLAMA_MODEL") or env.get("OLLAMA_MODEL", "qwen2.5:7b")
 

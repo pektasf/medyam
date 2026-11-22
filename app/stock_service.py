@@ -72,11 +72,18 @@ async def search_pixabay_videos(query: str, per_page: int = 5) -> list[dict[str,
     if not pixabay_key:
         return []
     
-    url = f"https://pixabay.com/api/videos/?key={pixabay_key}&q={query}&per_page={per_page}&video_type=film"
+    url = "https://pixabay.com/api/videos/"
+    params = {
+        "key": pixabay_key,
+        "q": query.strip(),
+        "per_page": per_page,
+        "video_type": "film",
+        "safesearch": "true"
+    }
     results = []
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url)
+            resp = await client.get(url, params=params)
             if resp.status_code == 200:
                 data = resp.json()
                 for hit in data.get("hits", []):
@@ -96,15 +103,58 @@ async def search_pixabay_videos(query: str, per_page: int = 5) -> list[dict[str,
                             "duration": hit.get("duration", 0)
                         })
     except Exception as exc:
-        print(f"Pixabay search error: {exc}")
+        print(f"Pixabay video search error: {exc}")
     return results
 
 
-async def search_stock_media(query: str, limit: int = 6) -> list[dict[str, Any]]:
-    """Pexels ve Pixabay üzerinde eşzamanlı arama yapar."""
-    pexels_task = search_pexels_videos(query, per_page=limit)
-    pixabay_task = search_pixabay_videos(query, per_page=limit)
-    res = await asyncio.gather(pexels_task, pixabay_task, return_exceptions=True)
+async def search_pixabay_images(query: str, per_page: int = 5) -> list[dict[str, Any]]:
+    _, pixabay_key = _get_api_keys()
+    if not pixabay_key:
+        return []
+
+    url = "https://pixabay.com/api/"
+    params = {
+        "key": pixabay_key,
+        "q": query.strip(),
+        "per_page": per_page,
+        "image_type": "photo",
+        "orientation": "vertical",
+        "safesearch": "true"
+    }
+    results = []
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url, params=params)
+            if resp.status_code == 200:
+                data = resp.json()
+                for hit in data.get("hits", []):
+                    img_url = hit.get("largeImageURL") or hit.get("webformatURL")
+                    if img_url:
+                        results.append({
+                            "source": "Pixabay",
+                            "kind": "image",
+                            "title": f"Pixabay Fotoğraf {hit.get('id')}",
+                            "download_url": img_url,
+                            "page_url": hit.get("pageURL", ""),
+                            "author": hit.get("user", "Pixabay Creator"),
+                            "license": "Pixabay Content License (Commercial OK)",
+                            "commercial_ok": True,
+                            "thumbnail": hit.get("previewURL", img_url),
+                            "duration": 0
+                        })
+    except Exception as exc:
+        print(f"Pixabay image search error: {exc}")
+    return results
+
+
+async def search_stock_media(query: str, limit: int = 8) -> list[dict[str, Any]]:
+    """Pexels ve Pixabay üzerinde eşzamanlı video ve dikey görsel arama yapar."""
+    half = max(2, limit // 2)
+    pexels_task = search_pexels_videos(query, per_page=half)
+    pixabay_vid_task = search_pixabay_videos(query, per_page=half)
+    pixabay_img_task = search_pixabay_images(query, per_page=max(2, half // 2))
+
+    res = await asyncio.gather(pexels_task, pixabay_vid_task, pixabay_img_task, return_exceptions=True)
     combined = []
     for r in res:
         if isinstance(r, list):
