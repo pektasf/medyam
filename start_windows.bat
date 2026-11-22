@@ -17,7 +17,7 @@ if errorlevel 1 goto error
 call .venv\Scripts\python.exe -m pip install -r requirements.txt
 if errorlevel 1 goto error
 if not exist .env copy .env.example .env >nul
-echo [3/3] Eski Usul AI Studio v0.3 baslatiliyor...
+echo [3/3] Eski Usul AI Studio v0.5.0 baslatiliyor...
 start "Eski Usul AI Studio" http://127.0.0.1:8765
 call .venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
 if errorlevel 1 goto error

@@ -1,5 +1,5 @@
 """
-Eski Usul AI Studio — Backend v0.3.5 (Tam Yetenekli Sürüm)
+Eski Usul AI Studio — Backend v0.5.0 (Tam Yetenekli Sürüm)
 Yenilikler:
   - Paralel Ajan Orkestrasyonu (Araştırma & Strateji paralel, Doğrulama & Görsel & Dil paralel)
   - Otomatik Edge-TTS Doğal Türkçe Seslendirme (/api/scripts/{id}/generate-voice)
@@ -60,7 +60,7 @@ app = FastAPI(title="Eski Usul AI Studio", version="0.5.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -195,11 +195,21 @@ def _is_workflow_cancelled(workflow_id: str) -> bool:
 
 @app.post("/api/workflows/{workflow_id}/cancel")
 def cancel_workflow(workflow_id: str):
+    from app.video_engine.orchestrator import kill_active_render
+    kill_active_render(workflow_id)
     with conn() as c:
         c.execute("UPDATE workflows SET status='cancelled', updated_at=? WHERE id=?", (now(), workflow_id))
         c.execute("UPDATE agent_executions SET status='skipped', finished_at=? WHERE workflow_id=? AND status='pending'", (now(), workflow_id))
         c.execute("UPDATE agent_executions SET status='cancelled', finished_at=? WHERE workflow_id=? AND status='running'", (now(), workflow_id))
-    return {"ok": True, "message": "İş akışı başarıyla durduruldu."}
+        wf = c.execute("SELECT result_json FROM workflows WHERE id=?", (workflow_id,)).fetchone()
+        if wf and wf["result_json"]:
+            try:
+                s_id = json.loads(wf["result_json"]).get("script_id")
+                if s_id:
+                    kill_active_render(s_id)
+            except Exception:
+                pass
+    return {"ok": True, "message": "İş akışı ve varsa render işlemi başarıyla durduruldu."}
 
 
 @app.get("/api/reports")
@@ -331,50 +341,68 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
         sources = await asyncio.to_thread(search_sources, request.topic, request.language)
         context["research_sources"] = sources
 
+        # Kontrollü Eşzamanlılık (Rate Limit ve TPM korumalı semafor)
+        sem = asyncio.Semaphore(2)
+
+        async def run_guarded(agent_key: str):
+            async with sem:
+                return await run_single_agent(agent_key, workflow_id, context, env_cache)
+
         # Aşama 1: Executive Producer
         if _is_workflow_cancelled(workflow_id): return
-        ep_out, ep_prov = await run_single_agent("executive_producer", workflow_id, context, env_cache)
+        ep_out, ep_prov = await run_guarded("executive_producer")
         context["agent_outputs"]["executive_producer"] = ep_out
         providers.add(ep_prov)
 
-        # Aşama 2: Trend Researcher
+        # Aşama 2: PARALEL [Trend Researcher + Audience Strategist]
         if _is_workflow_cancelled(workflow_id): return
-        await asyncio.sleep(1.2)
-        tr_out, tr_prov = await run_single_agent("trend_researcher", workflow_id, context, env_cache)
-        context["agent_outputs"]["trend_researcher"] = tr_out
-        providers.add(tr_prov)
+        await asyncio.sleep(0.5)
+        phase2_results = await asyncio.gather(
+            run_guarded("trend_researcher"),
+            run_guarded("audience_strategist"),
+            return_exceptions=False
+        )
+        context["agent_outputs"]["trend_researcher"] = phase2_results[0][0]
+        providers.add(phase2_results[0][1])
+        context["agent_outputs"]["audience_strategist"] = phase2_results[1][0]
+        providers.add(phase2_results[1][1])
 
-        # Aşama 3: Audience Strategist
+        # Aşama 3: Creative Director
         if _is_workflow_cancelled(workflow_id): return
-        await asyncio.sleep(1.0)
-        aud_out, aud_prov = await run_single_agent("audience_strategist", workflow_id, context, env_cache)
-        context["agent_outputs"]["audience_strategist"] = aud_out
-        providers.add(aud_prov)
-
-        # Aşama 4: Creative Director
-        if _is_workflow_cancelled(workflow_id): return
-        await asyncio.sleep(1.0)
-        cd_out, cd_prov = await run_single_agent("creative_director", workflow_id, context, env_cache)
+        await asyncio.sleep(0.8)
+        cd_out, cd_prov = await run_guarded("creative_director")
         context["agent_outputs"]["creative_director"] = cd_out
         providers.add(cd_prov)
 
-        # Aşama 5: Lead Scriptwriter
+        # Aşama 4: Lead Scriptwriter
         if _is_workflow_cancelled(workflow_id): return
-        await asyncio.sleep(1.2)
-        sw_out, sw_prov = await run_single_agent("scriptwriter", workflow_id, context, env_cache)
+        await asyncio.sleep(0.8)
+        sw_out, sw_prov = await run_guarded("scriptwriter")
         context["agent_outputs"]["scriptwriter"] = sw_out
         providers.add(sw_prov)
 
-        # Aşama 6-10: Danışman & Denetçi Uzmanlar (Hata durumunda ana akışı düşürmez)
-        for adv_key in ["fact_checker", "visual_producer", "localization_editor", "quality_auditor", "publishing_strategist"]:
+        # Aşama 5: PARALEL [Fact Checker + Visual Producer + Localization Editor]
+        if _is_workflow_cancelled(workflow_id): return
+        await asyncio.sleep(0.5)
+        phase5_keys = ["fact_checker", "visual_producer", "localization_editor"]
+        phase5_results = await asyncio.gather(
+            *(run_guarded(k) for k in phase5_keys),
+            return_exceptions=False
+        )
+        for k, (adv_out, adv_prov) in zip(phase5_keys, phase5_results):
+            context["agent_outputs"][k] = adv_out
+            providers.add(adv_prov)
+
+        # Aşama 6: Quality Auditor & Publishing Strategist
+        for final_key in ["quality_auditor", "publishing_strategist"]:
             if _is_workflow_cancelled(workflow_id): return
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.4)
             try:
-                adv_out, adv_prov = await run_single_agent(adv_key, workflow_id, context, env_cache)
-                context["agent_outputs"][adv_key] = adv_out
-                providers.add(adv_prov)
+                f_out, f_prov = await run_guarded(final_key)
+                context["agent_outputs"][final_key] = f_out
+                providers.add(f_prov)
             except Exception as e:
-                print(f"[Workflow] {adv_key} danışmanlık adımı uyarısı: {e}")
+                print(f"[Workflow] {final_key} uyarısı: {e}")
 
         # Senaryoyu Hazırla
         script_output = context["agent_outputs"].get("scriptwriter", {}).get("deliverable", {})
@@ -461,6 +489,7 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
 
         # 4. Otomatik FFmpeg Sinematik Montajı Çalıştır (TikTok Safe-Zone Altyazı + Crossfade)
         video_filename = None
+        render_qa_info = None
         usable = rows("SELECT * FROM assets WHERE kind IN ('video','image') AND commercial_ok=1 ORDER BY created_at DESC")
         if usable:
             try:
@@ -473,8 +502,13 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
                     transition_style="fade",
                     enable_ken_burns=True
                 )
-                video_filename = montage_res.get("filename")
-                print(f"[Workflow] Otomatik montaj tamamlandı: {video_filename}")
+                render_qa_info = montage_res.get("qa")
+                if montage_res.get("ok"):
+                    video_filename = montage_res.get("filename")
+                    print(f"[Workflow] Otomatik montaj ve Render QA doğrulandı: {video_filename}")
+                else:
+                    print(f"[Workflow] Render QA uyarısı (video üretildi fakat kalite standartlarını karşılamadı): {render_qa_info}")
+                    video_filename = montage_res.get("filename")
             except Exception as e:
                 print(f"[Workflow] Otomatik montaj uyarısı: {e}")
 
@@ -484,6 +518,7 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
             "voice_filename": voice_fn,
             "video_filename": video_filename,
             "curated_count": len(curated_assets),
+            "render_qa": render_qa_info,
             "context": context
         }
         with conn() as c:
@@ -1118,7 +1153,7 @@ def health():
 # ---------------------------------------------------------------------------
 
 @app.get("/api/scripts/{script_id}/qa")
-def get_script_quality_audit(script_id: str):
+async def get_script_quality_audit(script_id: str):
     from app.quality_guard import perform_full_studio_qa
     script = one("SELECT * FROM scripts WHERE id=?", (script_id,))
     if not script:
@@ -1133,8 +1168,7 @@ def get_script_quality_audit(script_id: str):
     mp4_path = EXPORTS / mp4_name
     if mp4_path.exists():
         from app.video_editor import validate_video_render, get_ffmpeg_bin
-        import asyncio
-        qa_res = asyncio.run(validate_video_render(get_ffmpeg_bin(), mp4_path))
+        qa_res = await validate_video_render(get_ffmpeg_bin(), mp4_path)
         render_qa = qa_res.to_dict()
 
     audit = perform_full_studio_qa(dict(script), voice_file_path=voice_path, render_qa_dict=render_qa)

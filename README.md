@@ -1,8 +1,8 @@
-# Eski Usul AI Studio — v0.3.5
+# Eski Usul AI Studio — v0.5.0
 
 Windows 11 üzerinde yerel çalışan, Türkçe arayüzlü tam donanımlı içerik üretim stüdyosu. Veritabanı ve medya dosyaları proje klasöründeki `data/` altında tutulur. Sunucu varsayılan olarak yalnızca `127.0.0.1` üzerinden erişilebilir.
 
-## v0.3.5 ile Eklenen Tam Yetenekler
+## v0.5.0 ile Eklenen Tam Yetenekler
 1. **Paralel & Hibrit Ajan Orkestrasyonu**: 
    - Araştırma Analisti ve İzleyici Stratejisti eşzamanlı çalışır.
    - Doğrulama (Fact Checker), Görsel Prodüksiyon ve Dil Editörü eşzamanlı çalışır. Üretim süresi yarı yarıya kısaltıldı.

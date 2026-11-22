@@ -66,6 +66,22 @@ async def get_audio_duration_seconds(audio_path: Path) -> float:
     return 30.0
 
 
+ACTIVE_RENDER_PROCESSES: dict[str, asyncio.subprocess.Process] = {}
+
+
+def kill_active_render(script_or_workflow_id: str) -> bool:
+    """Arka planda render alan FFmpeg sürecini anında sonlandırır."""
+    proc = ACTIVE_RENDER_PROCESSES.pop(script_or_workflow_id, None)
+    if proc:
+        try:
+            proc.kill()
+            print(f"[Render Engine] {script_or_workflow_id} için çalışan FFmpeg süreci zorla sonlandırıldı.")
+            return True
+        except Exception as e:
+            print(f"[Render Engine] Süreç sonlandırılamadı: {e}")
+    return False
+
+
 async def assemble_smart_video(
     script_id: str,
     scenes: list[dict[str, Any]],
@@ -204,7 +220,11 @@ async def assemble_smart_video(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
-    await proc.communicate()
+    ACTIVE_RENDER_PROCESSES[script_id] = proc
+    try:
+        await proc.communicate()
+    finally:
+        ACTIVE_RENDER_PROCESSES.pop(script_id, None)
 
     # 8. Render QA Doğrulama (Teknik Denetim)
     qa_result = await validate_video_render(ffmpeg, out_final)

@@ -821,6 +821,7 @@ function renderWorkflow(w) {
         <div>
           <b style="font-size:12px;color:var(--text-primary);">${esc(a.agent_name)}</b>
           <span style="font-size:10.5px;color:var(--text-muted);margin-left:6px;">${esc(a.department)}</span>
+          ${a.output?.deliverable?.is_fallback ? `<span class="badge" style="background:#FEF3C7;color:#92400E;margin-left:6px;font-size:9.5px;border:1px solid #FCD34D;">⚠️ Şablon Çıktısı (Degraded Mode)</span>` : ''}
           ${a.output?.summary ? `<p style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${esc(a.output.summary)}</p>` : ''}
           ${a.error ? `<p style="color:var(--status-danger);font-size:11px;margin-top:2px;">${esc(a.error)}</p>` : ''}
         </div>

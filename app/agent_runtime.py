@@ -842,8 +842,9 @@ def generate_fallback_specialist_output(agent_key: str, context: dict[str, Any])
             "decision": "approved"
         },
         "scriptwriter": {
-            "summary": f"'{topic}' için 9:16 dikey TikTok video senaryosu ve sahne planı eksiksiz oluşturuldu.",
+            "summary": f"'{topic}' için 9:16 dikey TikTok video senaryosu ve sahne planı editoryal şablon motoruyla oluşturuldu.",
             "deliverable": {
+                "is_fallback": True,
                 "hook": f"{topic} hakkında bunu daha önce hiç duymuş muydunuz?",
                 "narration": f"{topic} konusunda herkesin bildiği detayların ötesinde çok daha etkileyici bir gerçek var. Detaylara yakından baktığınızda sizi şaşırtacak unsurlarla karşılaşıyorsunuz. Şimdi bir adım geriye çekilip bu deneyimi birlikte keşfedelim. Sizce de öyle değil mi?",
                 "scenes": [
@@ -877,35 +878,41 @@ def generate_fallback_specialist_output(agent_key: str, context: dict[str, Any])
                     }
                 ]
             },
-            "warnings": ["AI modeli kotası nedeniyle editoryal stüdyo şablonuyla optimize edildi."],
-            "decision": "approved"
+            "warnings": ["Harici AI modeli kotası nedeniyle editoryal şablon motoru devreye girdi; içerik insan kontrolüne sunuldu."],
+            "decision": "review"
         },
         "fact_checker": {
-            "summary": f"'{topic}' senaryosundaki ifadeler doğrulandı, yanıltıcı bilgi bulunamadı.",
-            "deliverable": {"verified": True, "claims_checked": 3, "score": 95},
-            "warnings": [],
-            "decision": "approved"
+            "summary": f"'{topic}' senaryosu harici model kotası nedeniyle otomatik bilgi teyidinden geçemedi; insan teyidi gereklidir.",
+            "deliverable": {
+                "is_fallback": True,
+                "verified": False,
+                "claims_checked": 0,
+                "status": "unverified_fallback"
+            },
+            "warnings": ["Otomatik doğrulama yapılamadı (Degraded Mode). Gerçek mekan veya olay bilgisi varsa manuel kontrol ediniz."],
+            "decision": "needs_human_verification"
         },
         "visual_producer": {
-            "summary": f"'{topic}' sahneleri için dikey stok video eşleşmeleri ve kamera açıları onaylandı.",
-            "deliverable": {"aspect_ratio": "9:16", "shots_count": 4, "style": "Dikey video ve sinematik geçişler"},
-            "warnings": [],
-            "decision": "approved"
+            "summary": f"'{topic}' sahneleri için standart 9:16 dikey kompozisyon ve stok video planı oluşturuldu.",
+            "deliverable": {"is_fallback": True, "aspect_ratio": "9:16", "shots_count": 4, "style": "Dikey video ve sinematik geçişler"},
+            "warnings": ["Standart görsel kurgu şablonu uygulandı."],
+            "decision": "review"
         },
         "localization_editor": {
-            "summary": f"{language.upper()} dili için sesletim, imla ve konuşma akıcılığı onaylandı.",
-            "deliverable": {"language": language, "readability": "Akıcı ve doğal konuşma temposu"},
-            "warnings": [],
-            "decision": "approved"
+            "summary": f"{language.upper()} dili için temel konuşma temposu formatlandı.",
+            "deliverable": {"is_fallback": True, "language": language, "readability": "Standart konuşma temposu"},
+            "warnings": ["Dil ve telaffuz editoryal şablon seviyesindedir."],
+            "decision": "review"
         },
         "quality_auditor": {
-            "summary": "Stüdyo kalite denetimi tamamlandı, içerik yayına uygun bulundu.",
+            "summary": "Stüdyo kalite denetimi model kotası nedeniyle tam çalıştırılamadı; taslak inceleme durumuna alındı.",
             "deliverable": {
-                "scores": {"hook": 90, "flow": 88, "visuals": 92, "audio": 90, "total": 90},
-                "decision": "approved"
+                "is_fallback": True,
+                "scores": {"hook": 70, "flow": 70, "visuals": 70, "audio": 70, "total": 70},
+                "decision": "review"
             },
-            "warnings": [],
-            "decision": "approved"
+            "warnings": ["Otomatik denetim yerine taslak inceleme modu uygulandı (Degraded Mode)."],
+            "decision": "review"
         },
         "publishing_strategist": {
             "summary": f"'{topic}' videosu için yayın zamanı ve TikTok etiketleri hazırlandı.",
