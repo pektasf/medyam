@@ -339,7 +339,7 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
 
         # Aşama 2: Trend Researcher
         if _is_workflow_cancelled(workflow_id): return
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(1.2)
         tr_out, tr_prov = await run_single_agent("trend_researcher", workflow_id, context, env_cache)
         context["agent_outputs"]["trend_researcher"] = tr_out
         providers.add(tr_prov)

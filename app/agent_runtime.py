@@ -972,6 +972,13 @@ async def call_specialist(
         "agent_outputs": compact_outputs
     }
 
+    # Trend researcher için bulunan web kaynaklarını temizleyerek aktar
+    if agent.get("key") == "trend_researcher" and context.get("research_sources"):
+        compact_context["research_sources"] = [
+            {"title": s.get("title", "")[:100], "snippet": s.get("snippet", "")[:200], "url": s.get("url", "")}
+            for s in context.get("research_sources", [])[:5]
+        ]
+
     user_prompt = (
         system_header
         + f"SPECIALIST: {agent['name']}\n"
@@ -1004,8 +1011,12 @@ async def call_specialist(
         max_groq_attempts = 4
         for attempt in range(max_groq_attempts):
             try:
+                payload = dict(groq_payload)
+                if attempt > 0:
+                    # 400 Bad Request durumunda response_format filtresini kaldırıp metin üzerinden JSON çıkar
+                    payload.pop("response_format", None)
                 async with httpx.AsyncClient(timeout=45) as client:
-                    response = await client.post(groq_url, headers=groq_headers, json=groq_payload)
+                    response = await client.post(groq_url, headers=groq_headers, json=payload)
                     response.raise_for_status()
                     raw = response.json()["choices"][0]["message"]["content"]
                     data = _extract_json(raw)
@@ -1026,6 +1037,9 @@ async def call_specialist(
                             wait_time = max(float(retry_after) + 1.0, 5.0) if retry_after else (4.0 + attempt * 2.0)
                         except (ValueError, TypeError):
                             wait_time = 4.0 + attempt * 2.0
+                    elif exc.response.status_code == 400:
+                        # 400 Bad Request durumunda beklemek yerine sonraki denemede response_format olmadan anında dene
+                        wait_time = 0.5
                 if attempt < max_groq_attempts - 1:
                     await asyncio.sleep(wait_time)
 
