@@ -79,23 +79,37 @@ async function api(url, opts = {}) {
 
 // ------------------------------------------------------------------ NAVIGATION & MOBILE DRAWER --
 function showView(name) {
-  $$('.view-section').forEach(x => x.classList.toggle('active', x.id === name));
-  $$('.nav-item').forEach(x => x.classList.toggle('active', x.dataset.view === name));
+  // Aliases for consolidated views
+  let targetView = name;
+  if (name === 'media-library') targetView = 'assets';
+  if (name === 'queue') targetView = 'calendar';
+  if (name === 'planner' || name === 'production') targetView = 'editor';
+
+  $$('.view-section').forEach(x => x.classList.toggle('active', x.id === targetView));
+  $$('.nav-item').forEach(x => {
+    const v = x.dataset.view;
+    const match = (v === targetView) || (v === name) ||
+                  (v === 'media-library' && targetView === 'assets') ||
+                  (v === 'queue' && targetView === 'calendar') ||
+                  ((v === 'planner' || v === 'production') && targetView === 'editor');
+    x.classList.toggle('active', match);
+  });
   
   const titles = {
-    overview:       'Kökpit',
-    ideas:          'Fikir & Senaryo Laboratuvarı',
-    editor:         'Sahne Düzenleyici & Storyboard',
-    'scripts-vault':'Senaryo Arşivi',
+    editor:         'Üretim Stüdyosu (Yeni Üret & Editör)',
+    overview:       'Kökpit & KPI',
     assets:         'Medya Kütüphanesi & Kurgu',
+    'media-library':'Medya Kütüphanesi & Kurgu',
     reports:        'Video Vault & Raporlar',
-    agents:         '10 Uzman Hibrit Ekip',
-    analytics:      'Yayın Performansı',
-    settings:       'Ayarlar & API Yönetimi'
+    calendar:       'Yayın Takvimi & Kuyruk',
+    queue:          'Yayın Takvimi & Kuyruk',
+    agents:         'Ajan Ekibi & Analitik',
+    analytics:      'Ajan Ekibi & Analitik',
+    settings:       'Stüdyo Ayarları'
   };
   
   if ($('#page-title')) {
-    $('#page-title').textContent = titles[name] || 'Medyam Studio';
+    $('#page-title').textContent = titles[targetView] || 'Medyam Studio';
   }
   
   // Mobilde sidebar açıksa kapat
@@ -104,11 +118,11 @@ function showView(name) {
   window.scrollTo(0, 0);
 
   // Görünüme özel tetikleyiciler
-  if (name === 'reports') loadStudioReports();
-  else if (name === 'scripts-vault') loadVaultScripts();
-  else if (name === 'editor') ensureEditorHasScript();
-  else if (name === 'settings') loadSettings();
-  else if (name === 'analytics') loadAnalyticsHistory();
+  if (targetView === 'reports') loadStudioReports();
+  else if (targetView === 'scripts-vault') loadVaultScripts();
+  else if (targetView === 'editor') ensureEditorHasScript();
+  else if (targetView === 'settings') loadSettings();
+  else if (targetView === 'analytics') loadAnalyticsHistory();
 }
 
 $$('.nav-item').forEach(b => {
@@ -347,6 +361,16 @@ window.selectScene = (index) => {
   renderTimelineTrack();
 };
 
+let currentInspectorTab = 'tab-text';
+
+window.switchInspectorTab = (tabName) => {
+  currentInspectorTab = tabName;
+  $$('.inspector-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  renderActiveSceneInspector();
+};
+
 function renderActiveSceneInspector() {
   const container = $('#inspector-body');
   const titleBadge = $('#inspector-scene-title');
@@ -361,58 +385,294 @@ function renderActiveSceneInspector() {
 
   const sc = scenes[currentActiveSceneIndex];
   if (titleBadge) titleBadge.textContent = `Sahne ${currentActiveSceneIndex + 1}`;
+  const yPct = sc.y_percent || 74;
 
-  container.innerHTML = `
-    <div class="inspector-section">
-      <div class="inspector-section-title">Zamanlama & Süre</div>
-      <div class="field-group">
-        <label class="field-label">Zaman Kodu (Saniye)</label>
-        <input id="insp-time" class="input-text" style="font-family:var(--font-mono);" value="${esc(sc.time || '')}" placeholder="Örn: 0-4s" oninput="onInspectorInput('time', this.value)">
-      </div>
-    </div>
+  let contentHtml = '';
 
-    <div class="inspector-section">
-      <div class="inspector-section-title">Metinler & Diyalog</div>
-      <div class="field-group">
-        <label class="field-label">Ekranda Görünen Metin (On-Screen)</label>
-        <input id="insp-screen-text" class="input-text" value="${esc(sc.on_screen_text || sc.text || '')}" placeholder="TikTok ekranında belirecek başlık..." oninput="onInspectorInput('on_screen_text', this.value)">
-      </div>
+  if (currentInspectorTab === 'tab-text') {
+    contentHtml = `
+      <div class="inspector-section">
+        <div class="inspector-section-title">Metinler & Dikey Konum</div>
+        <div class="field-group">
+          <label class="field-label">Ekranda Görünen Metin (On-Screen)</label>
+          <input id="insp-screen-text" class="input-text" value="${esc(sc.on_screen_text || sc.text || '')}" placeholder="TikTok ekranında belirecek başlık..." oninput="onInspectorInput('on_screen_text', this.value)">
+        </div>
 
-      <div class="field-group">
-        <label class="field-label">Seslendirme Metni (Voiceover)</label>
-        <textarea id="insp-narration" class="input-textarea" rows="2" placeholder="Bu sahnede seslendirilecek cümle..." oninput="onInspectorInput('narration', this.value)">${esc(sc.narration || '')}</textarea>
-      </div>
-    </div>
+        <div class="field-group" style="margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <label class="field-label">Dikey Konum (Safe-Zone %)</label>
+            <span id="insp-pos-val" style="font-family:var(--font-mono);font-size:11px;color:#38BDF8;">%${yPct}</span>
+          </div>
+          <input type="range" id="insp-pos-slider" min="14" max="82" value="${yPct}" style="width:100%;accent-color:#6366F1;" oninput="setCanvasTextY(parseInt(this.value))">
+          <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--text-muted);margin-top:2px;">
+            <span>Üst %14</span>
+            <span>Orta %50</span>
+            <span>Alt Güvenli %82</span>
+          </div>
+        </div>
 
-    <div class="inspector-section">
-      <div class="inspector-section-title">Görsel / Kamera Planı & Medya</div>
-      <div class="field-group">
-        <label class="field-label">Görsel Talimatı (Prompt)</label>
-        <textarea id="insp-visual" class="input-textarea" rows="2" placeholder="Pexels/Pixabay arama terimi..." oninput="onInspectorInput('visual', this.value)">${esc(sc.visual || sc.shot || '')}</textarea>
+        <div class="field-group" style="margin-top:10px;">
+          <label class="field-label">Seslendirme Metni (Voiceover)</label>
+          <textarea id="insp-narration" class="input-textarea" rows="3" placeholder="Bu sahnede seslendirilecek cümle..." oninput="onInspectorInput('narration', this.value)">${esc(sc.narration || '')}</textarea>
+        </div>
       </div>
-      <div class="field-group" style="margin-top:8px;">
-        <label class="field-label">Sahneye Kilitli Medya</label>
-        ${sc.asset_stored_name ? `
-          <div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:var(--radius-xs);padding:8px;margin-bottom:6px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-              <span class="badge badge-green" style="font-size:10px;">✓ ${esc(sc.asset_filename || sc.asset_stored_name)}</span>
-              <button class="btn btn-ghost btn-sm" style="font-size:10px;color:var(--status-danger);" onclick="removeAssetFromCurrentScene()">🗑️ Kaldır</button>
+    `;
+  } else if (currentInspectorTab === 'tab-media') {
+    contentHtml = `
+      <div class="inspector-section">
+        <div class="inspector-section-title">Sahne Medyası & Stok Arama</div>
+        <div class="field-group">
+          <label class="field-label">Görsel Talimatı (Prompt / Arama)</label>
+          <input id="insp-visual" class="input-text" value="${esc(sc.visual || sc.shot || '')}" placeholder="Pexels/Pixabay arama terimi..." oninput="onInspectorInput('visual', this.value)">
+        </div>
+
+        <div class="field-group" style="margin-top:10px;">
+          <label class="field-label">Bağlı Medya</label>
+          ${sc.asset_stored_name ? `
+            <div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:var(--radius-xs);padding:8px;margin-bottom:6px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span class="badge badge-green" style="font-size:10px;">✓ ${esc(sc.asset_filename || sc.asset_stored_name)}</span>
+                <button class="btn btn-ghost btn-sm" style="font-size:10px;color:var(--status-danger);" onclick="removeAssetFromCurrentScene()">🗑️ Kaldır</button>
+              </div>
+              <video src="/media/assets/${esc(sc.asset_stored_name)}" style="width:100%;height:90px;object-fit:cover;border-radius:4px;" muted controls></video>
             </div>
-            <video src="/media/assets/${esc(sc.asset_stored_name)}" style="width:100%;height:85px;object-fit:cover;border-radius:4px;" muted controls></video>
-          </div>
-        ` : `
-          <div style="font-size:11px;color:var(--text-muted);background:var(--bg-subtle);padding:8px;border-radius:var(--radius-xs);border:1px dashed var(--border-default);margin-bottom:6px;">
-            ⏳ Bu sahneye henüz video atanmadı.
-          </div>
-        `}
+          ` : `
+            <div style="font-size:11px;color:var(--text-muted);background:var(--bg-subtle);padding:8px;border-radius:var(--radius-xs);border:1px dashed var(--border-default);margin-bottom:6px;">
+              ⏳ Bu sahneye henüz medya atanmadı.
+            </div>
+          `}
+        </div>
+
+        <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:6px;" onclick="searchStockForCurrentScene()">🔍 Pexels'te Bu Sahne İçin Video Bul</button>
+        <div id="inspector-stock-results" style="margin-top:8px;"></div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
-        <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="searchStockForCurrentScene()">🔍 Bu Sahne İçin Pexels'te Video Ara</button>
-        <button class="btn btn-indigo btn-sm" style="width:100%;" onclick="triggerEditorFullProduction()">⚡ Tüm Senaryoyu Otonom Kurgula (Seslendir + Video İndir + Montajla)</button>
+    `;
+  } else if (currentInspectorTab === 'tab-transition') {
+    contentHtml = `
+      <div class="inspector-section">
+        <div class="inspector-section-title">Zamanlama & Geçiş</div>
+        <div class="field-group">
+          <label class="field-label">Zaman Kodu (Saniye)</label>
+          <input id="insp-time" class="input-text" style="font-family:var(--font-mono);" value="${esc(sc.time || '')}" placeholder="Örn: 0-4s" oninput="onInspectorInput('time', this.value)">
+        </div>
+        <div class="field-group" style="margin-top:10px;">
+          <label class="field-label">Geçiş Efekti (Transition)</label>
+          <select id="insp-transition" class="input-select" onchange="onInspectorInput('transition', this.value)">
+            <option value="fade" ${sc.transition === 'fade' ? 'selected' : ''}>Fade (Yumuşak Kararma)</option>
+            <option value="dissolve" ${sc.transition === 'dissolve' ? 'selected' : ''}>Cross Dissolve (Eriyme)</option>
+            <option value="slideleft" ${sc.transition === 'slideleft' ? 'selected' : ''}>Slide Left (Sola Kayma)</option>
+            <option value="wipeleft" ${sc.transition === 'wipeleft' ? 'selected' : ''}>Wipe Left (Silme)</option>
+            <option value="cut" ${sc.transition === 'cut' ? 'selected' : ''}>Direct Cut (Düz Kesme)</option>
+          </select>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  } else if (currentInspectorTab === 'tab-render') {
+    contentHtml = `
+      <div class="inspector-section">
+        <div class="inspector-section-title">Otonom Montaj & Dışa Aktarma</div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:12px;line-height:1.4;">
+          Edge-TTS ile seslendirme üretilir, Pexels'ten dikey HD videolar eşleştirilir, 9:16 safe-zone altyazılar yakılır ve FFmpeg ile birleştirilir.
+        </div>
+        <button class="btn btn-indigo" style="width:100%;padding:10px;font-weight:700;" onclick="triggerEditorFullProduction()">
+          ⚡ Tam Otonom Kurgula & Montajla
+        </button>
+        <div style="margin-top:12px;">
+          <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="showView('reports')">
+            🏆 Video Vault'u ve İndirme Sayfasını Aç
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = contentHtml;
 }
+
+// ------------------------------------------------------------------ SÜRÜKLENEBİLİR CANLI METİN & TIKTOK OVERLAY -------------------
+window.setCanvasTextY = (pct) => {
+  const y = Math.max(14, Math.min(82, pct));
+  const box = $('#canvas-live-editor');
+  const badge = $('#canvas-drag-badge');
+  const slider = $('#insp-pos-slider');
+  const posVal = $('#insp-pos-val');
+
+  if (box) box.style.top = `${y}%`;
+  const zoneLabel = y < 35 ? 'Üst' : (y > 65 ? 'Alt Safe' : 'Orta');
+  if (badge) badge.textContent = `${zoneLabel} %${y}`;
+  if (slider) slider.value = y;
+  if (posVal) posVal.textContent = `%${y}`;
+
+  if (currentEditorScriptData && currentEditorScriptData.scenes[currentActiveSceneIndex]) {
+    currentEditorScriptData.scenes[currentActiveSceneIndex].y_percent = y;
+    markEditorDirty();
+  }
+};
+
+window.toggleTikTokOverlay = () => {
+  const overlay = $('#canvas-tiktok-overlay');
+  const btn = $('#btn-toggle-tiktok-overlay');
+  if (!overlay) return;
+  const isHidden = overlay.classList.toggle('tiktok-hidden');
+  if (btn) {
+    btn.textContent = isHidden ? '📱 TikTok Arayüzü: Kapalı' : '📱 TikTok Arayüzü: Açık';
+  }
+};
+
+function initEditorCanvasInteractions() {
+  const handle = $('#canvas-drag-handle');
+  const box = $('#canvas-live-editor');
+  const mockup = $('#mockup-screen');
+  if (!handle || !box || !mockup) return;
+
+  let isDragging = false;
+  let startY = 0;
+  let startTopPct = 74;
+
+  const onStart = (e) => {
+    // Input/textarea alanına tıklanırken sürüklemeyi tetikleme
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+    isDragging = true;
+    box.setAttribute('data-dragging', 'true');
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startY = clientY;
+    const currentTop = parseFloat(box.style.top) || 74;
+    startTopPct = currentTop;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  };
+
+  const onMove = (e) => {
+    if (!isDragging) return;
+    if (e.cancelable) e.preventDefault();
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const rect = mockup.getBoundingClientRect();
+    const deltaY = clientY - startY;
+    const deltaPct = (deltaY / rect.height) * 100;
+    let newPct = Math.round(startTopPct + deltaPct);
+    newPct = Math.max(14, Math.min(82, newPct));
+    setCanvasTextY(newPct);
+  };
+
+  const onEnd = () => {
+    if (!isDragging) return;
+    isDragging = false;
+    box.removeAttribute('data-dragging');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onEnd);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+  };
+
+  handle.addEventListener('mousedown', onStart);
+  handle.addEventListener('touchstart', onStart, { passive: false });
+}
+
+// ------------------------------------------------------------------ STÜDYO HIZLI AI ÜRETİM DOCK'U -------------------
+window.startStudioQuickProduction = async () => {
+  const topicInput = $('#editor-brief-topic');
+  const topic = (topicInput?.value || '').trim();
+  if (!topic) {
+    toast('Lütfen üretmek istediğiniz video konusunu yazın.', 'warning');
+    topicInput?.focus();
+    return;
+  }
+
+  const lang = $('#editor-brief-language')?.value || 'tr';
+  const duration = parseInt($('#editor-brief-duration')?.value || '35');
+
+  const btn = $('#btn-editor-start-agent');
+  const progressBox = $('#editor-agent-progress-box');
+  const stepLabel = $('#editor-agent-step-label');
+  const pctLabel = $('#editor-agent-pct-label');
+  const bar = $('#editor-agent-progress-bar');
+
+  if (btn) btn.disabled = true;
+  if (progressBox) progressBox.style.display = 'block';
+
+  try {
+    toast('✦ Ajan ekibi göreve başladı: Araştırma, kurgu ve senaryo yazılıyor…', 'info');
+
+    // 1. İş akışını başlat
+    const wf = await api('/api/workflows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: topic,
+        language: lang,
+        duration: duration,
+        project_id: 'welcome'
+      })
+    });
+
+    const workflowId = wf.id;
+
+    // 2. Canlı ilerleme simülasyonu & SSE / durum takibi
+    let currentPct = 10;
+    const steps = [
+      { pct: 20, name: 'Executive Producer brief hazırlıyor…' },
+      { pct: 38, name: 'Trend Researcher & Audience kitleyi analiz ediyor…' },
+      { pct: 55, name: 'Creative Director konsepti oluşturuyor…' },
+      { pct: 75, name: 'Lead Scriptwriter sahneleri ve diyalogları yazıyor…' },
+      { pct: 90, name: 'Visual Producer & Fact Checker sahneleri doğruluyor…' },
+      { pct: 98, name: 'Quality Auditor son onayı veriyor…' }
+    ];
+
+    let stepIdx = 0;
+    const pollInterval = setInterval(async () => {
+      if (stepIdx < steps.length) {
+        currentPct = steps[stepIdx].pct;
+        if (stepLabel) stepLabel.textContent = `🤖 ${steps[stepIdx].name}`;
+        if (pctLabel) pctLabel.textContent = `%${currentPct}`;
+        if (bar) bar.style.width = `${currentPct}%`;
+        stepIdx++;
+      }
+
+      // Senaryoları kontrol et
+      try {
+        const scList = await api('/api/scripts');
+        if (scList && scList.length > 0) {
+          const matched = scList.find(s => s.workflow_id === workflowId || s.title?.includes(topic.slice(0, 15)));
+          if (matched && stepIdx >= steps.length) {
+            clearInterval(pollInterval);
+            if (stepLabel) stepLabel.textContent = '✓ Senaryo ve sahneler tamamlandı!';
+            if (pctLabel) pctLabel.textContent = '%100';
+            if (bar) bar.style.width = '100%';
+            
+            toast('✦ Yeni senaryo başarıyla üretildi ve stüdyoya yüklendi!', 'success');
+            await loadVaultScripts();
+            await loadScriptToEditor(matched.id);
+
+            setTimeout(() => {
+              if (progressBox) progressBox.style.display = 'none';
+              if (btn) btn.disabled = false;
+            }, 1200);
+          }
+        }
+      } catch (e) {}
+    }, 1400);
+
+    // Güvenlik timeout'u (35 saniye)
+    setTimeout(async () => {
+      clearInterval(pollInterval);
+      if (btn) btn.disabled = false;
+      const scList = await api('/api/scripts');
+      if (scList && scList.length > 0) {
+        await loadVaultScripts();
+        await loadScriptToEditor(scList[0].id);
+      }
+      if (progressBox) progressBox.style.display = 'none';
+    }, 32000);
+
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    if (progressBox) progressBox.style.display = 'none';
+    toast(`Üretim başlatılamadı: ${err.message}`, 'danger');
+  }
+};
 
 // Canlı Tuval Üzerinde Düzenleme Senkronizasyonu
 window.syncCanvasToInspector = (val) => {
@@ -654,13 +914,7 @@ window.toggleMockupPlay = () => {
   }, 3000);
 };
 
-window.triggerEditorFullProduction = () => {
-  if (!currentEditorScriptId) {
-    toast('Lütfen önce bir senaryo seçin.');
-    return;
-  }
-  triggerFullAutonomous(currentEditorScriptId, null);
-};
+
 
 // ------------------------------------------------------------------ SENARYO ARŞİVİ (TANSTACK-STYLE TABLO) --
 window.loadVaultScripts = () => {
@@ -1320,3 +1574,5 @@ $('#metrics-form')?.addEventListener('submit', async e => {
 // İLK YÜKLEME
 refresh();
 loadSettings();
+initEditorCanvasInteractions();
+showView('editor');

@@ -863,31 +863,247 @@ html, body {
   text-transform: uppercase;
 }
 
-/* Live On-Canvas Subtitle / On-Screen Text Editor */
+/* ==================== UNIFIED STUDIO: AI BRIEF DOCK ==================== */
+.editor-brief-dock {
+  background: #14171F;
+  border: 1px solid #282C37;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* ==================== SÜRÜKLENEBİLİR CANLI METİN KATMANI ==================== */
 .canvas-live-editor {
   position: absolute;
-  bottom: 86px;
-  left: 14px;
-  right: 52px;
-  z-index: 25;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  left: 12px;
+  right: 56px;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1.5px dashed rgba(255, 255, 255, 0.45);
   border-radius: var(--radius-xs);
-  padding: 6px;
+  padding: 4px 6px;
+  cursor: grab;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.canvas-live-editor:hover {
+  border-color: #6366F1;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.canvas-live-editor[data-dragging="true"] {
+  cursor: grabbing;
+  border-color: #10B981;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+  opacity: 0.95;
+}
+
+.canvas-drag-handle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #9CA3AF;
+  margin-bottom: 2px;
+  padding: 1px 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+}
+
+.canvas-drag-handle .drag-badge {
+  font-family: var(--font-mono);
+  color: #38BDF8;
+  background: rgba(56, 189, 248, 0.15);
+  padding: 0 4px;
+  border-radius: 2px;
 }
 
 .canvas-live-input {
   width: 100%;
   background: transparent;
   border: none;
-  color: #FFFF00; /* TikTok Yellow Contrast Subtitle */
-  font-size: 12px;
+  color: #FFFF00; /* TikTok Yellow High Contrast */
+  font-size: 13px;
   font-weight: 700;
   text-align: center;
   outline: none;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  resize: none;
+  line-height: 1.35;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.8);
   font-family: var(--font-sans);
+}
+
+/* ==================== TIKTOK GERÇEKÇİ ARAYÜZ KATMANI ==================== */
+.canvas-tiktok-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 22;
+  transition: opacity 0.2s ease;
+}
+
+.canvas-tiktok-overlay.tiktok-hidden {
+  display: none !important;
+}
+
+.canvas-tiktok-sidebar {
+  position: absolute;
+  right: 8px;
+  bottom: 74px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  z-index: 24;
+}
+
+.tt-avatar-wrap {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 4px;
+}
+
+.tt-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF0050, #00F2FE);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1.5px solid #fff;
+}
+
+.tt-avatar-plus {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #FF0050;
+  color: #fff;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.tt-metric-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #FFFFFF;
+  font-size: 9.5px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.tt-metric-icon svg {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.85));
+}
+
+.canvas-tiktok-bottom {
+  position: absolute;
+  left: 12px;
+  right: 56px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 24;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.tt-author {
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.tt-caption {
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.92;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tt-music-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.tt-disc-rotate {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #111;
+  border: 4px solid #222;
+  box-shadow: inset 0 0 0 2px #444;
+  animation: ttDiscSpin 3.5s linear infinite;
+  margin-left: auto;
+}
+
+@keyframes ttDiscSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ==================== INSPECTOR SEKME SİSTEMİ ==================== */
+.inspector-tabs-nav {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 4px 6px;
+  background: #11141B;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.inspector-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 6px 2px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.inspector-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.inspector-tab-btn.active {
+  color: #FFFFFF;
+  background: #252A37;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .canvas-visual-bg {
@@ -901,33 +1117,6 @@ html, body {
   color: rgba(255, 255, 255, 0.85);
   font-size: 11px;
   background: linear-gradient(180deg, #1A1D24 0%, #0C0D11 100%);
-}
-
-.canvas-tiktok-sidebar {
-  position: absolute;
-  right: 8px;
-  bottom: 60px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: center;
-  z-index: 20;
-}
-
-.tt-metric-icon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  color: #FFFFFF;
-  font-size: 9px;
-  font-family: var(--font-mono);
-}
-
-.tt-metric-icon svg {
-  width: 18px;
-  height: 18px;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
 }
 
 /* Transport Controls */

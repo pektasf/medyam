@@ -146,14 +146,34 @@ async def assemble_smart_video(
             continue
 
         out_clip = work_dir / f"scene_{idx:02d}.mp4"
-        success = await process_scene_clip(
-            ffmpeg_bin=ffmpeg,
-            source_path=src_path,
-            output_path=out_clip,
-            duration=clip.duration,
-            is_image=clip.is_image,
-            enable_ken_burns=enable_ken_burns
-        )
+        success = False
+        if src_path and src_path.exists():
+            success = await process_scene_clip(
+                ffmpeg_bin=ffmpeg,
+                source_path=src_path,
+                output_path=out_clip,
+                duration=clip.duration,
+                is_image=clip.is_image,
+                enable_ken_burns=enable_ken_burns
+            )
+        
+        # Eğer kaynak medya bulunamadıysa veya işlenemediyse estetik stüdyo arka planı oluştur
+        if not success:
+            dur = max(float(clip.duration), 2.5)
+            # Modern koyu degrade arka plan (1080x1920 9:16)
+            bg_colors = ["#0f172a", "#1e1b4b", "#172554", "#111827", "#18181b"]
+            c_hex = bg_colors[idx % len(bg_colors)]
+            cmd_bg = [
+                ffmpeg, "-y",
+                "-f", "lavfi", "-i", f"color=c={c_hex}:s=1080x1920:d={dur}:r=30",
+                "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+                str(out_clip)
+            ]
+            p_bg = await asyncio.create_subprocess_exec(*cmd_bg, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            await p_bg.communicate()
+            if out_clip.exists():
+                success = True
+
         if success:
             clips.append(out_clip)
             scene_durations.append(clip.duration)
@@ -211,10 +231,11 @@ async def assemble_smart_video(
 
     cmd.extend([
         "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-        "-pix_fmt", "yuv420p", "-r", "30",
-        "-c:a", "aac", "-b:a", "192k",
-        "-shortest", str(out_final)
+        "-pix_fmt", "yuv420p", "-r", "30"
     ])
+    if mixed_audio and mixed_audio.exists():
+        cmd.extend(["-c:a", "aac", "-b:a", "192k", "-shortest"])
+    cmd.append(str(out_final))
 
     proc = await asyncio.create_subprocess_exec(
         *cmd,

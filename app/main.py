@@ -720,84 +720,93 @@ async def full_autonomous_production(script_id: str):
     3. FFmpeg ile sinematik geçişli ve güvenli bölge altyazılı montajı yap.
     4. TikTok paketini hazırla.
     """
-    script = one("SELECT * FROM scripts WHERE id=?", (script_id,))
-    if not script:
-        raise HTTPException(404, "Senaryo bulunamadı")
-        
-    # 1. Seslendirme üret (Edge-TTS)
-    narration_text = script.get("narration") or script.get("hook") or ""
-    scenes = []
-    if script.get("scenes"):
-        try:
-            scenes = json.loads(script["scenes"])
-        except Exception:
-            scenes = []
+    try:
+        script = one("SELECT * FROM scripts WHERE id=?", (script_id,))
+        if not script:
+            raise HTTPException(404, "Senaryo bulunamadı")
+            
+        # 1. Seslendirme üret (Edge-TTS)
+        narration_text = script.get("narration") or script.get("hook") or ""
+        scenes = []
+        if script.get("scenes"):
+            try:
+                scenes = json.loads(script["scenes"])
+            except Exception:
+                scenes = []
 
-    if not narration_text and scenes:
-        narration_text = " ".join([sc.get("narration") or sc.get("on_screen_text") or "" for sc in scenes]).strip()
+        if not narration_text and scenes:
+            narration_text = " ".join([sc.get("narration") or sc.get("on_screen_text") or "" for sc in scenes]).strip()
 
-    voice_fn = None
-    if narration_text:
-        try:
-            voice_fn, _ = await generate_speech(narration_text, language=script.get("language") or "tr")
-        except Exception as e:
-            print(f"Seslendirme uyarısı: {e}")
+        voice_fn = script.get("voice_filename")
+        if narration_text:
+            try:
+                voice_fn, _ = await generate_speech(narration_text, language=script.get("language") or "tr")
+            except Exception as e:
+                print(f"[Autonomous Production] Seslendirme uyarısı: {e}")
 
-    # 2. Eksik sahne medyalarını Görsel Zeka Motoru ile bul, puanla ve sahneye bağla
-    missing_scenes = [sc for sc in scenes if not sc.get("asset_stored_name")]
-    if missing_scenes:
-        try:
-            from app.visual_curator import curate_all_scenes_visuals
-            curated = await curate_all_scenes_visuals(scenes, target_duration=35.0)
-            with conn() as c:
-                for it in curated:
-                    meta_str = json.dumps({"match_score": it.get("match_score", 85), "alternatives": it.get("alternatives", [])}, ensure_ascii=False)
-                    c.execute(
-                        "INSERT OR REPLACE INTO assets (id, filename, stored_name, kind, source_url, license_name, commercial_ok, attribution, notes, asset_type, metadata_json, created_at) "
-                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                        (
-                            it["id"], it["filename"], it["stored_name"],
-                            it["kind"], it["source_url"], it["license_name"],
-                            it["commercial_ok"], it["attribution"], it["notes"],
-                            "stock_video", meta_str, now()
+        # 2. Eksik sahne medyalarını Görsel Zeka Motoru ile bul, puanla ve sahneye bağla
+        missing_scenes = [sc for sc in scenes if not sc.get("asset_stored_name")]
+        if missing_scenes:
+            try:
+                from app.visual_curator import curate_all_scenes_visuals
+                curated = await curate_all_scenes_visuals(scenes, target_duration=35.0)
+                with conn() as c:
+                    for it in curated:
+                        meta_str = json.dumps({"match_score": it.get("match_score", 85), "alternatives": it.get("alternatives", [])}, ensure_ascii=False)
+                        c.execute(
+                            "INSERT OR REPLACE INTO assets (id, filename, stored_name, kind, source_url, license_name, commercial_ok, attribution, notes, asset_type, metadata_json, created_at) "
+                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                            (
+                                it["id"], it["filename"], it["stored_name"],
+                                it["kind"], it["source_url"], it["license_name"],
+                                it["commercial_ok"], it["attribution"], it["notes"],
+                                "stock_video", meta_str, now()
+                            )
                         )
-                    )
-            for it in curated:
-                idx = it.get("scene_index")
-                if idx is not None and idx < len(scenes):
-                    scenes[idx]["asset_id"] = it["id"]
-                    scenes[idx]["asset_filename"] = it["filename"]
-                    scenes[idx]["asset_stored_name"] = it["stored_name"]
-                    scenes[idx]["asset_url"] = f"/media/assets/{it['stored_name']}"
-                    scenes[idx]["match_score"] = it.get("match_score", 85)
-        except Exception as e:
-            print(f"[Visual Curator] Stok video indirme uyarısı: {e}")
+                for it in curated:
+                    idx = it.get("scene_index")
+                    if idx is not None and idx < len(scenes):
+                        scenes[idx]["asset_id"] = it["id"]
+                        scenes[idx]["asset_filename"] = it["filename"]
+                        scenes[idx]["asset_stored_name"] = it["stored_name"]
+                        scenes[idx]["asset_url"] = f"/media/assets/{it['stored_name']}"
+                        scenes[idx]["match_score"] = it.get("match_score", 85)
+            except Exception as e:
+                print(f"[Autonomous Production] Görsel arama uyarısı: {e}")
 
-    # Sahne ve seslendirme verilerini senaryoda güncelle
-    with conn() as c:
-        c.execute(
-            "UPDATE scripts SET scenes=?, voice_filename=? WHERE id=?",
-            (json.dumps(scenes, ensure_ascii=False), voice_fn, script_id)
+        # Sahne ve seslendirme verilerini senaryoda güncelle
+        with conn() as c:
+            c.execute(
+                "UPDATE scripts SET scenes=?, voice_filename=? WHERE id=?",
+                (json.dumps(scenes, ensure_ascii=False), voice_fn, script_id)
+            )
+
+        # 3. Mevcut ticari onaylı medyaları al
+        usable = rows("SELECT * FROM assets WHERE kind IN ('video','image') AND commercial_ok=1 ORDER BY created_at DESC")
+        if not usable:
+            usable = rows("SELECT * FROM assets WHERE kind IN ('video','image') ORDER BY created_at DESC")
+        if not usable:
+            raise HTTPException(400, "Montaj için medya bulunamadı. Lütfen Medya Kütüphanesi'nden stok video indirin.")
+
+        # 4. Sinematik Montaj
+        result = await assemble_smart_video(
+            script_id=script_id,
+            scenes=scenes,
+            usable_assets=usable,
+            voice_filename=voice_fn,
+            burn_subtitles=True,
+            transition_style="fade",
+            enable_ken_burns=True
         )
-
-    # 3. Mevcut ticari onaylı medyaları al
-    usable = rows("SELECT * FROM assets WHERE kind IN ('video','image') AND commercial_ok=1 ORDER BY created_at DESC")
-    if not usable:
-        raise HTTPException(400, "Montaj için ticari onaylı medya bulunamadı. Lütfen Medya Kütüphanesi'nden stok video indirin.")
-
-    # 4. Sinematik Montaj
-    result = await assemble_smart_video(
-        script_id=script_id,
-        scenes=scenes,
-        usable_assets=usable,
-        voice_filename=voice_fn,
-        burn_subtitles=True,
-        transition_style="fade",
-        enable_ken_burns=True
-    )
-    result["voice_filename"] = voice_fn
-    result["message"] = "Tam otonom kurgu tamamlandı! Seslendirme, dikey videolar, geçiş efektleri ve altyazılar hazırlandı."
-    return result
+        result["voice_filename"] = voice_fn
+        result["message"] = "Tam otonom kurgu tamamlandı! Seslendirme, dikey videolar, geçiş efektleri ve altyazılar hazırlandı."
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Otonom kurgu hatası: {_redact(str(exc))}")
 
 
 @app.get("/api/stock/search")
