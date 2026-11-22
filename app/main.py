@@ -48,14 +48,15 @@ DB   = DATA / "database" / "studio.sqlite3"
 ASSETS  = DATA / "media" / "assets"
 VOICE   = DATA / "media" / "voice"
 EXPORTS = DATA / "media" / "exports"
+THUMBNAILS = DATA / "media" / "thumbnails"
 PROJECTS = DATA / "projects"
-for _p in [DB.parent, ASSETS, VOICE, EXPORTS, PROJECTS]:
+for _p in [DB.parent, ASSETS, VOICE, EXPORTS, THUMBNAILS, PROJECTS]:
     _p.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_ASSET_EXT = {".mp4", ".mov", ".m4v", ".webm", ".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_AUDIO_EXT = {".wav", ".mp3", ".m4a", ".aac", ".ogg"}
 
-app = FastAPI(title="Eski Usul AI Studio", version="0.3.5")
+app = FastAPI(title="Eski Usul AI Studio", version="0.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,6 +70,7 @@ app.mount("/static", StaticFiles(directory=ROOT / "app" / "static"), name="stati
 app.mount("/media/assets", StaticFiles(directory=ASSETS), name="assets_static")
 app.mount("/media/voice", StaticFiles(directory=VOICE), name="voice_static")
 app.mount("/media/exports", StaticFiles(directory=EXPORTS), name="exports_static")
+app.mount("/media/thumbnails", StaticFiles(directory=THUMBNAILS), name="thumbnails_static")
 
 
 def conn():
@@ -79,44 +81,8 @@ def conn():
 
 def init_db():
     with conn() as c:
-        c.executescript("""
-        CREATE TABLE IF NOT EXISTS projects(
-            id TEXT PRIMARY KEY, title TEXT NOT NULL, language TEXT DEFAULT 'tr',
-            status TEXT DEFAULT 'idea', created_at TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS ideas(
-            id TEXT PRIMARY KEY, title TEXT NOT NULL, angle TEXT,
-            language TEXT DEFAULT 'tr', score INTEGER DEFAULT 0,
-            status TEXT DEFAULT 'new', created_at TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS scripts(
-            id TEXT PRIMARY KEY, project_id TEXT, title TEXT, language TEXT,
-            hook TEXT, narration TEXT, scenes TEXT, score INTEGER DEFAULT 0,
-            review TEXT, voice_filename TEXT, created_at TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS assets(
-            id TEXT PRIMARY KEY, filename TEXT, stored_name TEXT, kind TEXT,
-            source_url TEXT, license_name TEXT, commercial_ok INTEGER DEFAULT 0,
-            attribution TEXT, notes TEXT, created_at TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS tasks(
-            id TEXT PRIMARY KEY, agent TEXT, title TEXT, status TEXT,
-            detail TEXT, created_at TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS metrics(
-            id TEXT PRIMARY KEY, project_id TEXT, views INTEGER DEFAULT 0,
-            avg_watch REAL DEFAULT 0, saves INTEGER DEFAULT 0, shares INTEGER DEFAULT 0,
-            followers INTEGER DEFAULT 0, notes TEXT, created_at TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS workflows(
-            id TEXT PRIMARY KEY, topic TEXT NOT NULL, language TEXT NOT NULL,
-            duration INTEGER NOT NULL, status TEXT NOT NULL, provider TEXT,
-            result_json TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS agent_executions(
-            id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, agent_key TEXT NOT NULL,
-            agent_name TEXT NOT NULL, department TEXT NOT NULL, status TEXT NOT NULL,
-            output_json TEXT, provider TEXT, error TEXT,
-            started_at TEXT, finished_at TEXT,
-            FOREIGN KEY(workflow_id) REFERENCES workflows(id));
-        """)
-        try:
-            c.execute("ALTER TABLE scripts ADD COLUMN voice_filename TEXT")
-        except Exception:
-            pass
+        from app.migrations import run_all_migrations
+        run_all_migrations(c)
         n = c.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
         if n == 0:
             c.execute(
@@ -308,13 +274,17 @@ async def run_single_agent(agent_key: str, workflow_id: str, context: dict, env_
 
     except Exception as exc:
         safe_err = _redact(str(exc))[:1200]
+        print(f"[Workflow] {agent['name']} yürütülürken hata: {safe_err}, akıllı editoryal şablon motoruyla tamamlanıyor.")
+        from app.agent_runtime import generate_fallback_specialist_output
+        fallback_out = generate_fallback_specialist_output(agent_key, context)
+        provider = "Studio Fallback Engine · Akıllı Şablon"
         with conn() as c:
             c.execute(
-                "UPDATE agent_executions SET status='failed', error=?, finished_at=? WHERE id=?",
-                (safe_err, now(), execution_id),
+                "UPDATE agent_executions SET status='completed', output_json=?, provider=?, warnings_json=?, finished_at=? WHERE id=?",
+                (json.dumps(fallback_out, ensure_ascii=False), provider, json.dumps([safe_err], ensure_ascii=False), now(), execution_id),
             )
-            c.execute("UPDATE tasks SET status='failed' WHERE id=?", ("agent-" + agent_key,))
-        raise RuntimeError(f"{agent['name']}: {safe_err}")
+            c.execute("UPDATE tasks SET status='completed' WHERE id=?", ("agent-" + agent_key,))
+        return fallback_out, provider
 
 
 async def execute_workflow(workflow_id: str, request: WorkflowIn):
@@ -376,21 +346,21 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
 
         # Aşama 3: Audience Strategist
         if _is_workflow_cancelled(workflow_id): return
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(1.0)
         aud_out, aud_prov = await run_single_agent("audience_strategist", workflow_id, context, env_cache)
         context["agent_outputs"]["audience_strategist"] = aud_out
         providers.add(aud_prov)
 
         # Aşama 4: Creative Director
         if _is_workflow_cancelled(workflow_id): return
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(1.0)
         cd_out, cd_prov = await run_single_agent("creative_director", workflow_id, context, env_cache)
         context["agent_outputs"]["creative_director"] = cd_out
         providers.add(cd_prov)
 
         # Aşama 5: Lead Scriptwriter
         if _is_workflow_cancelled(workflow_id): return
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(1.2)
         sw_out, sw_prov = await run_single_agent("scriptwriter", workflow_id, context, env_cache)
         context["agent_outputs"]["scriptwriter"] = sw_out
         providers.add(sw_prov)
@@ -441,38 +411,28 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
             except Exception as e:
                 print(f"[Workflow] Otomatik seslendirme uyarısı: {e}")
 
-        # 2. Sahneler için Pexels üzerinden dikey videoları bul, indir ve sahnelere bağla
-        vp_out = context["agent_outputs"].get("visual_producer", {}).get("deliverable", {})
-        visual_plan = vp_out.get("visual_plan", []) if isinstance(vp_out, dict) else []
-        if not visual_plan and scenes:
-            for idx, sc in enumerate(scenes):
-                visual_plan.append({
-                    "scene_index": idx,
-                    "scene_time": sc.get("time", ""),
-                    "visual": sc.get("visual") or sc.get("shot") or request.topic,
-                    "stock_search": {
-                        "query_tr": sc.get("visual") or sc.get("shot") or request.topic,
-                        "query_en": sc.get("visual") or sc.get("shot") or request.topic
-                    }
-                })
-
+        # 2. Sahneler için Görsel Zeka Motoru ile en uygun dikey videoları bul, puanla ve sahnelere bağla
         curated_assets = []
-        if visual_plan:
+        if scenes:
             try:
-                curated_assets = await auto_curate_scene_assets(visual_plan)
+                from app.visual_curator import curate_all_scenes_visuals
+                curated_assets = await curate_all_scenes_visuals(scenes, target_duration=float(request.duration or 35))
                 with conn() as c:
                     for it in curated_assets:
+                        meta_str = json.dumps({"match_score": it.get("match_score", 85), "alternatives": it.get("alternatives", [])}, ensure_ascii=False)
                         c.execute(
-                            "INSERT OR REPLACE INTO assets VALUES(?,?,?,?,?,?,?,?,?,?)",
+                            "INSERT OR REPLACE INTO assets (id, filename, stored_name, kind, source_url, license_name, commercial_ok, attribution, notes, asset_type, metadata_json, created_at) "
+                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                             (
                                 it["id"], it["filename"], it["stored_name"],
                                 it["kind"], it["source_url"], it["license_name"],
-                                it["commercial_ok"], it["attribution"], it["notes"], now()
+                                it["commercial_ok"], it["attribution"], it["notes"],
+                                "stock_video", meta_str, now()
                             )
                         )
-                print(f"[Workflow] {len(curated_assets)} dikey video Pexels'ten arşive indirildi.")
+                print(f"[Workflow] {len(curated_assets)} dikey video görsel zeka ile puanlanarak arşive indirildi.")
             except Exception as e:
-                print(f"[Workflow] Otomatik stok medya indirme uyarısı: {e}")
+                print(f"[Workflow] Otomatik görsel küratör uyarısı: {e}")
 
         # İndirilen videoları doğrudan sahne kurgusuna ekle!
         if curated_assets and scenes:
@@ -485,6 +445,7 @@ async def execute_workflow(workflow_id: str, request: WorkflowIn):
                     sc["asset_filename"] = matched["filename"]
                     sc["asset_stored_name"] = matched["stored_name"]
                     sc["asset_url"] = f"/media/assets/{matched['stored_name']}"
+                    sc["match_score"] = matched.get("match_score", 85)
 
         # 3. Senaryoyu ve sahne kurgusunu veritabanına kaydet
         with conn() as c:
@@ -562,17 +523,30 @@ def home():
 
 @app.get("/api/dashboard")
 def dashboard():
+    total_content = one("SELECT COUNT(*) n FROM scripts")["n"]
+    in_production = one("SELECT COUNT(*) n FROM workflows WHERE status NOT IN ('completed', 'failed', 'cancelled')")["n"]
+    awaiting_review = one("SELECT COUNT(*) n FROM scripts WHERE review IS NULL OR review != 'approved'")["n"]
+    ready_to_publish = one("SELECT COUNT(*) n FROM scripts WHERE review = 'approved'")["n"]
+    scheduled_posts = one("SELECT COUNT(*) n FROM publishing_queue WHERE status = 'scheduled'")["n"]
+    failed_tasks = one("SELECT COUNT(*) n FROM workflows WHERE status = 'failed'")["n"]
+
     return {
         "projects": rows("SELECT * FROM projects ORDER BY created_at DESC"),
         "ideas":    rows("SELECT * FROM ideas ORDER BY created_at DESC LIMIT 8"),
-        "assets":   rows("SELECT * FROM assets ORDER BY created_at DESC LIMIT 10"),
+        "assets":   rows("SELECT * FROM assets ORDER BY created_at DESC LIMIT 12"),
         "tasks":    rows("SELECT * FROM tasks WHERE id LIKE 'agent-%' ORDER BY agent"),
-        "scripts":  rows("SELECT * FROM scripts ORDER BY created_at DESC LIMIT 8"),
+        "scripts":  rows("SELECT * FROM scripts ORDER BY created_at DESC LIMIT 12"),
+        "publishing_queue": rows("SELECT * FROM publishing_queue ORDER BY scheduled_at ASC LIMIT 6"),
         "stats": {
-            "ideas":   one("SELECT COUNT(*) n FROM ideas")["n"],
-            "scripts": one("SELECT COUNT(*) n FROM scripts")["n"],
-            "assets":  one("SELECT COUNT(*) n FROM assets")["n"],
-            "pending": one("SELECT COUNT(*) n FROM scripts WHERE review IS NULL OR review != 'approved'")["n"],
+            "ideas":            one("SELECT COUNT(*) n FROM ideas")["n"],
+            "scripts":          total_content,
+            "assets":           one("SELECT COUNT(*) n FROM assets")["n"],
+            "total_content":    total_content,
+            "in_production":    in_production,
+            "awaiting_review":  awaiting_review,
+            "ready_to_publish": ready_to_publish,
+            "scheduled_posts":  scheduled_posts,
+            "failed_tasks":     failed_tasks,
         },
     }
 
@@ -734,31 +708,23 @@ async def full_autonomous_production(script_id: str):
         except Exception as e:
             print(f"Seslendirme uyarısı: {e}")
 
-    # 2. Eksik sahne medyalarını Pexels'ten otonom olarak indir ve sahneye bağla
-    needed_plan = []
-    for idx, sc in enumerate(scenes):
-        if not sc.get("asset_stored_name"):
-            needed_plan.append({
-                "scene_index": idx,
-                "scene_time": sc.get("time", f"{idx*4}-{(idx+1)*4}s"),
-                "visual": sc.get("visual") or sc.get("shot") or script.get("title") or "Istanbul sunset",
-                "stock_search": {
-                    "query_tr": sc.get("visual") or sc.get("shot") or script.get("title") or "Istanbul sunset",
-                    "query_en": sc.get("visual") or sc.get("shot") or script.get("title") or "Istanbul sunset"
-                }
-            })
-
-    if needed_plan:
+    # 2. Eksik sahne medyalarını Görsel Zeka Motoru ile bul, puanla ve sahneye bağla
+    missing_scenes = [sc for sc in scenes if not sc.get("asset_stored_name")]
+    if missing_scenes:
         try:
-            curated = await auto_curate_scene_assets(needed_plan)
+            from app.visual_curator import curate_all_scenes_visuals
+            curated = await curate_all_scenes_visuals(scenes, target_duration=35.0)
             with conn() as c:
                 for it in curated:
+                    meta_str = json.dumps({"match_score": it.get("match_score", 85), "alternatives": it.get("alternatives", [])}, ensure_ascii=False)
                     c.execute(
-                        "INSERT OR REPLACE INTO assets VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        "INSERT OR REPLACE INTO assets (id, filename, stored_name, kind, source_url, license_name, commercial_ok, attribution, notes, asset_type, metadata_json, created_at) "
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                         (
                             it["id"], it["filename"], it["stored_name"],
                             it["kind"], it["source_url"], it["license_name"],
-                            it["commercial_ok"], it["attribution"], it["notes"], now()
+                            it["commercial_ok"], it["attribution"], it["notes"],
+                            "stock_video", meta_str, now()
                         )
                     )
             for it in curated:
@@ -768,8 +734,9 @@ async def full_autonomous_production(script_id: str):
                     scenes[idx]["asset_filename"] = it["filename"]
                     scenes[idx]["asset_stored_name"] = it["stored_name"]
                     scenes[idx]["asset_url"] = f"/media/assets/{it['stored_name']}"
+                    scenes[idx]["match_score"] = it.get("match_score", 85)
         except Exception as e:
-            print(f"Stok video indirme uyarısı: {e}")
+            print(f"[Visual Curator] Stok video indirme uyarısı: {e}")
 
     # Sahne ve seslendirme verilerini senaryoda güncelle
     with conn() as c:
@@ -1138,9 +1105,212 @@ def update_settings(x: SettingsIn):
 def health():
     return {
         "status": "ok",
-        "version": "0.3.5",
+        "version": "0.5.0",
         "ffmpeg": is_ffmpeg_available(),
         "database": DB.exists(),
         "sse": SSE_AVAILABLE,
         "mode": "local-first",
     }
+
+
+# ---------------------------------------------------------------------------
+# FAZ 1 & 5: QUALITY GUARD (KALİTE KONTROL KARNESİ)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/scripts/{script_id}/qa")
+def get_script_quality_audit(script_id: str):
+    from app.quality_guard import perform_full_studio_qa
+    script = one("SELECT * FROM scripts WHERE id=?", (script_id,))
+    if not script:
+        raise HTTPException(404, "Senaryo bulunamadı")
+    
+    voice_fn = script.get("voice_filename")
+    voice_path = (VOICE / voice_fn) if voice_fn else None
+
+    # Eğer video renderı varsa onun QA'ini de al
+    render_qa = None
+    mp4_name = f"eski_usul_{script_id[:8]}.mp4"
+    mp4_path = EXPORTS / mp4_name
+    if mp4_path.exists():
+        from app.video_editor import validate_video_render, get_ffmpeg_bin
+        import asyncio
+        qa_res = asyncio.run(validate_video_render(get_ffmpeg_bin(), mp4_path))
+        render_qa = qa_res.to_dict()
+
+    audit = perform_full_studio_qa(dict(script), voice_file_path=voice_path, render_qa_dict=render_qa)
+    return audit.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# FAZ 2: GENİŞLETİLMİŞ MEDYA KÜTÜPHANESİ
+# ---------------------------------------------------------------------------
+
+@app.get("/api/media")
+def list_media_library(asset_type: Optional[str] = None, kind: Optional[str] = None, q: Optional[str] = None):
+    from app.media_manager import query_assets_library
+    return query_assets_library(asset_type=asset_type, kind=kind, search_query=q)
+
+
+@app.post("/api/media/{asset_id}/thumbnail")
+async def generate_media_thumbnail(asset_id: str):
+    from app.media_manager import generate_video_thumbnail
+    a = one("SELECT * FROM assets WHERE id=?", (asset_id,))
+    if not a:
+        raise HTTPException(404, "Medya bulunamadı")
+    
+    stored = a.get("stored_name")
+    if not stored:
+        raise HTTPException(400, "Dosya adı eksik")
+
+    src = ASSETS / stored
+    if not src.exists():
+        raise HTTPException(404, "Dosya diskte bulunamadı")
+
+    thumb_name = f"thumb_{asset_id[:8]}.jpg"
+    thumb_path = THUMBNAILS / thumb_name
+    success = await generate_video_thumbnail(src, thumb_path, at_second=1.0)
+    if success:
+        with conn() as c:
+            c.execute("UPDATE assets SET thumbnail_path=? WHERE id=?", (f"/media/thumbnails/{thumb_name}", asset_id))
+        return {"ok": True, "thumbnail_url": f"/media/thumbnails/{thumb_name}"}
+    raise HTTPException(500, "Thumbnail oluşturulamadı.")
+
+
+# ---------------------------------------------------------------------------
+# FAZ 4: YAYIN TAKVİMİ, KUYRUK VE SOSYAL HESAPLAR
+# ---------------------------------------------------------------------------
+
+class SchedulePostIn(BaseModel):
+    video_filename: str
+    caption: str
+    scheduled_at: str
+    hashtags: Optional[list[str]] = None
+    platform: str = "tiktok"
+    account_id: Optional[str] = None
+    script_id: Optional[str] = None
+
+
+@app.get("/api/publishing/calendar")
+def get_calendar():
+    from app.publishing_service import get_publishing_calendar
+    return get_publishing_calendar()
+
+
+@app.post("/api/publishing/schedule")
+def schedule_post(x: SchedulePostIn):
+    from app.publishing_service import add_to_publishing_queue
+    res = add_to_publishing_queue(
+        video_filename=x.video_filename,
+        caption=x.caption,
+        scheduled_at=x.scheduled_at,
+        hashtags=x.hashtags,
+        platform=x.platform,
+        account_id=x.account_id,
+        script_id=x.script_id
+    )
+    return res
+
+
+@app.get("/api/social-accounts")
+def get_social_accounts():
+    return rows("SELECT id, platform, account_name, account_handle, avatar_url, status, created_at FROM social_accounts")
+
+
+# ---------------------------------------------------------------------------
+# FAZ 5: ANALİTİK & SÜREKLİ ÖĞRENME
+# ---------------------------------------------------------------------------
+
+class AnalyticsRecordIn(BaseModel):
+    project_id: str
+    script_id: Optional[str] = None
+    post_id: Optional[str] = None
+    platform: str = "tiktok"
+    views: int = 0
+    likes: int = 0
+    comments: int = 0
+    shares: int = 0
+    saves: int = 0
+    avg_watch_time: float = 0.0
+    completion_rate: float = 0.0
+    notes: Optional[str] = ""
+
+
+@app.get("/api/analytics/insights")
+def get_insights():
+    from app.analytics_engine import analyze_performance_patterns
+    return analyze_performance_patterns()
+
+
+@app.post("/api/analytics/record")
+def post_analytics_record(x: AnalyticsRecordIn):
+    from app.analytics_engine import record_content_metrics
+    return record_content_metrics(
+        project_id=x.project_id,
+        script_id=x.script_id,
+        post_id=x.post_id,
+        platform=x.platform,
+        views=x.views,
+        likes=x.likes,
+        comments=x.comments,
+        shares=x.shares,
+        saves=x.saves,
+        avg_watch_time=x.avg_watch_time,
+        completion_rate=x.completion_rate,
+        notes=x.notes or ""
+    )
+
+
+# ---------------------------------------------------------------------------
+# MARKA & SES AYARLARI (BRAND & VOICE SETTINGS)
+# ---------------------------------------------------------------------------
+
+class BrandSettingsIn(BaseModel):
+    brand_name: str
+    spirit: str
+    tone: str
+    primary_voice_tr: str
+    primary_voice_en: str
+    primary_voice_ar: str
+    forbidden_words: Optional[list[str]] = None
+
+
+@app.get("/api/brand-settings")
+def get_brand_settings():
+    row = one("SELECT * FROM brand_settings WHERE id='default'")
+    if not row:
+        return {
+            "brand_name": "Eski Usul",
+            "spirit": "Hayat, ekrandan ibaret değil.",
+            "tone": "curious, observant, warm, grounded",
+            "primary_voice_tr": "tr-TR-AhmetNeural",
+            "primary_voice_en": "en-US-ChristopherNeural",
+            "primary_voice_ar": "ar-SA-HamedNeural",
+            "forbidden_words": ["carpe diem", "life is short", "put down your phone"]
+        }
+    res = dict(row)
+    if isinstance(res.get("forbidden_words"), str):
+        try:
+            res["forbidden_words"] = json.loads(res["forbidden_words"])
+        except Exception:
+            res["forbidden_words"] = []
+    return res
+
+
+@app.post("/api/brand-settings")
+def update_brand_settings(x: BrandSettingsIn):
+    words_json = json.dumps(x.forbidden_words or [], ensure_ascii=False)
+    with conn() as c:
+        c.execute("""
+            INSERT INTO brand_settings (id, brand_name, spirit, tone, primary_voice_tr, primary_voice_en, primary_voice_ar, forbidden_words, updated_at)
+            VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                brand_name=excluded.brand_name,
+                spirit=excluded.spirit,
+                tone=excluded.tone,
+                primary_voice_tr=excluded.primary_voice_tr,
+                primary_voice_en=excluded.primary_voice_en,
+                primary_voice_ar=excluded.primary_voice_ar,
+                forbidden_words=excluded.forbidden_words,
+                updated_at=excluded.updated_at
+        """, (x.brand_name, x.spirit, x.tone, x.primary_voice_tr, x.primary_voice_en, x.primary_voice_ar, words_json, now()))
+    return {"ok": True, "message": "Marka ve ses ayarları güncellendi."}
