@@ -79,37 +79,39 @@ async function api(url, opts = {}) {
 
 // ------------------------------------------------------------------ NAVIGATION & MOBILE DRAWER --
 function showView(name) {
-  // Aliases for consolidated views
+  // Map specific nav shortcuts to corresponding view containers
   let targetView = name;
   if (name === 'media-library') targetView = 'assets';
-  if (name === 'queue') targetView = 'calendar';
-  if (name === 'planner' || name === 'production') targetView = 'editor';
+  if (name === 'queue' || name === 'social-accounts') targetView = 'calendar';
+  if (name === 'planner' || name === 'production') targetView = 'ideas';
+  if (name === 'brand-settings') targetView = 'settings';
 
   $$('.view-section').forEach(x => x.classList.toggle('active', x.id === targetView));
   $$('.nav-item').forEach(x => {
-    const v = x.dataset.view;
-    const match = (v === targetView) || (v === name) ||
-                  (v === 'media-library' && targetView === 'assets') ||
-                  (v === 'queue' && targetView === 'calendar') ||
-                  ((v === 'planner' || v === 'production') && targetView === 'editor');
-    x.classList.toggle('active', match);
+    x.classList.toggle('active', x.dataset.view === name);
   });
   
   const titles = {
-    editor:         'Üretim Stüdyosu (Yeni Üret & Editör)',
-    overview:       'Kökpit & KPI',
-    assets:         'Medya Kütüphanesi & Kurgu',
-    'media-library':'Medya Kütüphanesi & Kurgu',
-    reports:        'Video Vault & Raporlar',
-    calendar:       'Yayın Takvimi & Kuyruk',
-    queue:          'Yayın Takvimi & Kuyruk',
-    agents:         'Ajan Ekibi & Analitik',
-    analytics:      'Ajan Ekibi & Analitik',
-    settings:       'Stüdyo Ayarları'
+    editor:         'Üretim Stüdyosu (Video Editör & Storyboard)',
+    overview:       'Studio Overview (Kökpit & KPI)',
+    planner:        'Content Planner (Fikir & Strateji Laboratuvarı)',
+    production:     'AI Production (Ajan Orkestrasyonu)',
+    ideas:          'Fikir & Senaryo Laboratuvarı',
+    assets:         'Media Library (Medya Kütüphanesi & Kurgu)',
+    'media-library':'Media Library (Medya Kütüphanesi & Kurgu)',
+    'scripts-vault':'Script Library (Senaryo Arşivi)',
+    reports:        'Video Vault & Raporlar (Render ve Kalite)',
+    calendar:       'Publishing Calendar (Yayın Takvimi)',
+    queue:          'Publishing Queue (Yayın Kuyruğu)',
+    'social-accounts':'Social Accounts (Sosyal Medya Hesapları)',
+    analytics:      'Analytics & Insights (Performans & Öngörüler)',
+    agents:         'AI Agent Center (10 Hibrit Ajan Ekibi)',
+    'brand-settings':'Brand & Voice Settings (Marka Dili)',
+    settings:       'System Settings (Sistem Ayarları)'
   };
   
   if ($('#page-title')) {
-    $('#page-title').textContent = titles[targetView] || 'Medyam Studio';
+    $('#page-title').textContent = titles[name] || titles[targetView] || 'Medyam Studio';
   }
   
   // Mobilde sidebar açıksa kapat

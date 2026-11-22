@@ -766,32 +766,36 @@ html, body {
 }
 
 .scene-card-item {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+  background: #141720;
+  border: 1px solid #232734;
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
+  padding: 9px 11px;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
   user-select: none;
+  position: relative;
 }
 
 .scene-card-item:hover {
-  border-color: #9CA3AF;
+  background: #191D28;
+  border-color: #3B4252;
 }
 
 .scene-card-item.selected {
-  background: #F9FAFB;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px var(--accent-primary);
+  background: rgba(99, 102, 241, 0.12);
+  border-color: #6366F1;
+  border-left: 3.5px solid #6366F1;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.22);
 }
 
 .scene-card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10.5px;
+  font-size: 10px;
   font-family: var(--font-mono);
-  color: var(--text-muted);
+  color: #818CF8;
+  font-weight: 600;
   margin-bottom: 4px;
 }
 
@@ -812,11 +816,12 @@ html, body {
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-top: 2px;
+  line-height: 1.35;
 }
 
 /* Kolon 2: 9:16 Dikey Mobil Canvas (Apple FCP + Remotion Safe-Zone) */
 .col-canvas-center {
-  background: var(--bg-surface);
+  background: radial-gradient(circle at 50% 35%, #181C26 0%, #0A0C11 100%);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   display: flex;
@@ -829,16 +834,54 @@ html, body {
 }
 
 .phone-canvas-frame {
-  width: 250px;
-  height: 444px; /* Exact 9:16 ratio */
+  width: 256px;
+  height: 455px; /* Exact 9:16 ratio */
   background: #000000;
-  border-radius: 28px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 0 0 6px #1F2228;
+  border-radius: 36px;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 0 7px #1B1E28, 0 0 0 8.5px rgba(255, 255, 255, 0.12);
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+/* Apple Flagship Dynamic Island */
+.phone-dynamic-island {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 76px;
+  height: 18px;
+  background: #000000;
+  border-radius: 12px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+.phone-dynamic-island::after {
+  content: '';
+  width: 7.5px;
+  height: 7.5px;
+  border-radius: 50%;
+  background: #111827;
+  border: 1.5px solid #1E293B;
+}
+
+.phone-dynamic-island::before {
+  content: '';
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: #059669;
+  box-shadow: 0 0 4px #10B981;
 }
 
 /* Safe Zone Indicator Guides */
