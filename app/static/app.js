@@ -1,12 +1,12 @@
 /* ============================================================
-   ESKİ USUL AI STUDIO — app.js v0.5 Master
-   Gelişmiş UI / UX, 3-Kolon Sahne Editörü, Raporlar & Ayarlar
+   MEDYAM — MODERN AI VIDEO STUDIO CLIENT (v1.0)
+   Linear + Apple Final Cut Pro Architecture
    ============================================================ */
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
-// Global State
+// Application State
 let currentActiveWorkflowId = null;
 let currentExportScriptId = null;
 let currentEditorScriptId = null;
@@ -19,16 +19,38 @@ let activeSSE = null;
 let lastVoice = null;
 let vaultScriptsCache = [];
 let vaultCurrentFilter = 'all';
+let autoSaveTimer = null;
 
 const agentIcons = ['✦','⌕','◉','✧','✎','▧','文','✓','⌁','↗'];
 
-// ------------------------------------------------------------------ TOAST --
-function toast(msg, type = 'info') {
-  const t = $('#toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  setTimeout(() => t.className = 'toast', 4000);
+// ------------------------------------------------------------------ SONNER-STYLE TOAST --
+function toast(msg, type = 'info', actionText = null, actionCallback = null) {
+  const container = $('#toast-container');
+  if (!container) return;
+
+  const item = document.createElement('div');
+  item.className = `toast-item ${type === 'danger' || type === 'error' ? 'toast-danger' : type === 'success' ? 'toast-success' : ''}`;
+  
+  let content = `<span>${esc(msg)}</span>`;
+  if (actionText && actionCallback) {
+    content += `<button class="btn btn-sm btn-secondary" style="margin-left:auto;" id="toast-action-btn">${esc(actionText)}</button>`;
+  }
+  item.innerHTML = content;
+
+  if (actionText && actionCallback) {
+    item.querySelector('#toast-action-btn')?.addEventListener('click', () => {
+      actionCallback();
+      item.remove();
+    });
+  }
+
+  container.appendChild(item);
+  setTimeout(() => {
+    item.style.opacity = '0';
+    item.style.transform = 'translateY(6px)';
+    item.style.transition = 'all 0.2s ease';
+    setTimeout(() => item.remove(), 200);
+  }, 4000);
 }
 
 function esc(s = '') {
@@ -49,49 +71,52 @@ async function api(url, opts = {}) {
     return d;
   } catch (err) {
     if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
-      throw new Error('Sunucuya ulaşılamıyor (127.0.0.1:8765). Lütfen uygulamanın açık olduğundan emin olun.');
+      throw new Error('Yerel sunucuya ulaşılamıyor (127.0.0.1:8765). Lütfen start_windows.bat dosyasının açık olduğundan emin olun.');
     }
     throw err;
   }
 }
 
-// ------------------------------------------------------------------ NAVIGATION --
+// ------------------------------------------------------------------ NAVIGATION & MOBILE DRAWER --
 function showView(name) {
-  $$('.view').forEach(x => x.classList.toggle('active', x.id === name));
+  $$('.view-section').forEach(x => x.classList.toggle('active', x.id === name));
   $$('.nav-item').forEach(x => x.classList.toggle('active', x.dataset.view === name));
   
   const titles = {
-    overview:       'Kokpit & Süreç',
+    overview:       'Kökpit',
     ideas:          'Fikir & Senaryo Laboratuvarı',
-    editor:         '3-Kolon Sahne Editörü',
-    'scripts-vault':'Senaryo Arşivi & Arama Masası',
-    assets:         'Medya & Kurgu Masası',
-    reports:        'Stüdyo Raporları & Video Vault',
-    agents:         '10 Uzman Operasyon Paneli',
-    settings:       'Ayarlar & API Yönetimi',
-    analytics:      'Yayın Performansı'
+    editor:         'Sahne Düzenleyici & Storyboard',
+    'scripts-vault':'Senaryo Arşivi',
+    assets:         'Medya Kütüphanesi & Kurgu',
+    reports:        'Video Vault & Raporlar',
+    agents:         '10 Uzman Hibrit Ekip',
+    analytics:      'Yayın Performansı',
+    settings:       'Ayarlar & API Yönetimi'
   };
   
   if ($('#page-title')) {
-    $('#page-title').textContent = titles[name] || 'Eski Usul AI Studio';
+    $('#page-title').textContent = titles[name] || 'Medyam Studio';
   }
+  
+  // Mobilde sidebar açıksa kapat
+  $('#app-sidebar')?.classList.remove('mobile-open');
+
   window.scrollTo(0, 0);
 
-  // Görünüm geçişlerinde ilgili verileri tetikle
-  if (name === 'reports') {
-    loadStudioReports();
-  } else if (name === 'scripts-vault') {
-    loadVaultScripts();
-  } else if (name === 'editor') {
-    ensureEditorHasScript();
-  } else if (name === 'settings') {
-    loadSettings();
-  }
+  // Görünüme özel tetikleyiciler
+  if (name === 'reports') loadStudioReports();
+  else if (name === 'scripts-vault') loadVaultScripts();
+  else if (name === 'editor') ensureEditorHasScript();
+  else if (name === 'settings') loadSettings();
+  else if (name === 'analytics') loadAnalyticsHistory();
 }
 
-// Navigasyon butonlarını bağla
 $$('.nav-item').forEach(b => {
   b.addEventListener('click', () => showView(b.dataset.view));
+});
+
+$('#btn-toggle-sidebar')?.addEventListener('click', () => {
+  $('#app-sidebar')?.classList.toggle('mobile-open');
 });
 
 // ------------------------------------------------------------------ REFRESH DASHBOARD --
@@ -103,93 +128,101 @@ async function refresh() {
     if ($('#stat-assets')) $('#stat-assets').textContent = d.stats.assets;
     if ($('#stat-pending')) $('#stat-pending').textContent = d.stats.pending;
 
-    // Aktif Proje Banner Bilgisi
+    // Aktif Proje Şeridi
     if (d.scripts && d.scripts.length > 0) {
       const latest = d.scripts[0];
       if ($('#active-project-title')) $('#active-project-title').textContent = latest.title;
       if ($('#active-project-desc')) {
-        $('#active-project-desc').textContent = latest.hook || 'Son senaryo hazır. Sahneleri düzenleyin, seslendirin ve kurgulayın.';
+        $('#active-project-desc').textContent = latest.hook || 'Son senaryo ve sahneler hazır. Sahneleri düzenleyin, seslendirin ve kurgulayın.';
       }
     }
 
-    // Mini agent listesi
+    // Mini Ajan Roster (Kökpit)
     if ($('#agent-mini')) {
-      $('#agent-mini').innerHTML = d.tasks.slice(0, 5).map(a =>
-        `<div class="agent-mini-row" style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:11.5px;">
-          <span>${esc(a.title)}</span>
-          <span class="badge ${a.status === 'completed' ? 'badge-green' : ''}">● ${esc(a.status === 'ready' ? 'Hazır' : a.status)}</span>
+      $('#agent-mini').innerHTML = d.tasks.slice(0, 5).map((a, i) =>
+        `<div class="agent-row-item" onclick="openAgentDrawer('${a.key || a.title}')">
+          <div class="agent-row-left">
+            <span class="agent-index-badge">${String(i + 1).padStart(2, '0')}</span>
+            <div>
+              <b style="font-size:12px;color:var(--text-primary);">${esc(a.title)}</b>
+              <div style="font-size:10.5px;color:var(--text-muted);">${esc(a.detail)}</div>
+            </div>
+          </div>
+          <span class="badge ${a.status === 'completed' ? 'badge-green' : a.status === 'running' ? 'badge-amber' : ''}">
+            ● ${esc(a.status === 'ready' ? 'Hazır' : a.status === 'completed' ? 'Tamamlandı' : a.status)}
+          </span>
          </div>`
       ).join('');
     }
 
-    // Ajan gridi
+    // Ajan Ekibi Grid (Linear Roster)
     if ($('#agent-grid')) {
       $('#agent-grid').innerHTML = d.tasks.map((a, i) =>
-        `<div class="agent-card">
-          <div class="agent-icon">${agentIcons[i] || '✦'}</div>
-          <b>${esc(a.title)}</b>
-          <p>${esc(a.detail)}</p>
-          <div class="badge ${a.status === 'completed' ? 'badge-green' : a.status === 'running' ? 'badge-orange' : ''}">
-            ● ${esc(
-              a.status === 'ready'      ? 'Sistemde Tanımlı' :
-              a.status === 'completed'  ? 'Görevi Tamamlandı' :
-              a.status === 'running'    ? 'Çalışıyor (Paralel)' :
-              a.status === 'failed'     ? 'Hata' : a.status
-            )}
+        `<div class="agent-row-item" onclick="openAgentDrawer('${a.key || a.title}')">
+          <div class="agent-row-left">
+            <span class="agent-index-badge">${String(i + 1).padStart(2, '0')}</span>
+            <div>
+              <b style="font-size:12.5px;color:var(--text-primary);">${esc(a.title)}</b>
+              <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">${esc(a.detail)}</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="badge ${a.status === 'completed' ? 'badge-green' : a.status === 'running' ? 'badge-amber' : ''}">
+              ● ${esc(a.status === 'ready' ? 'Tanımlı' : a.status === 'completed' ? 'Görevi Bitti' : a.status === 'running' ? 'Çalışıyor' : a.status)}
+            </span>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAgentDrawer('${a.key || a.title}')">İncele ↗</button>
           </div>
          </div>`
       ).join('');
     }
 
-    // Son senaryolar (Kokpit)
+    // Son Senaryolar (Kökpit)
     if ($('#recent-scripts')) {
       $('#recent-scripts').innerHTML = d.scripts.length
         ? d.scripts.slice(0, 4).map(s =>
-            `<div class="script-item" style="cursor:pointer;" onclick="openScriptInEditor('${s.id}')">
+            `<div class="agent-row-item" onclick="openScriptInEditor('${s.id}')">
               <div>
-                <b>${esc(s.title)}</b>
-                <small>${esc(s.language.toUpperCase())} · Kalite puanı ${s.score}/100</small>
+                <b style="font-size:12px;color:var(--text-primary);">${esc(s.title)}</b>
+                <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">${esc(s.language.toUpperCase())} · Kalite Puanı: ${s.score}/100</div>
               </div>
               <div style="display:flex;gap:6px;align-items:center;">
-                <span class="badge ${s.review === 'approved' ? 'badge-green' : s.review === 'revision' ? 'badge-orange' : ''}">
+                <span class="badge ${s.review === 'approved' ? 'badge-green' : s.review === 'revision' ? 'badge-amber' : ''}">
                   ${s.review === 'approved' ? '✓ Onaylandı' : s.review === 'revision' ? 'Revizyon' : 'İnceleme'}
                 </span>
-                <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="event.stopPropagation();openScriptInEditor('${s.id}')">Düzenle ✍️</button>
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openScriptInEditor('${s.id}')">Düzenle ✍️</button>
               </div>
              </div>`
           ).join('')
-        : '<div class="empty">Henüz senaryo yok. Yeni bir içerik oluşturarak başlayın.</div>';
+        : '<div class="empty-state">Henüz senaryo yok. Yeni bir içerik oluşturarak başlayın.</div>';
     }
 
-    // Fikir havuzu
+    // Fikir Havuzu
     if ($('#idea-list')) {
       $('#idea-list').innerHTML = d.ideas.length
         ? d.ideas.map(i =>
-            `<div class="idea-item">
+            `<div class="agent-row-item" style="padding:8px 0;">
               <div>
-                <b>${esc(i.title)}</b>
-                <small>${esc(i.angle || 'Açıklama eklenmedi')} · ${esc(i.language.toUpperCase())}</small>
+                <b style="font-size:12px;color:var(--text-primary);">${esc(i.title)}</b>
+                <div style="font-size:10.5px;color:var(--text-muted);">${esc(i.angle || 'Fikir Havuzunda')}</div>
               </div>
-              <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="fillBriefWithIdea('${esc(i.title)}')">Seç ↗</button>
+              <button class="btn btn-secondary btn-sm" onclick="fillBriefWithIdea('${esc(i.title)}')">Seç ↗</button>
              </div>`
           ).join('')
-        : '<div class="empty">Henüz fikir eklenmedi.</div>';
+        : '<div class="empty-state">Henüz fikir eklenmedi.</div>';
     }
 
-    // Medya arşivi
+    // Medya Listesi
     if ($('#asset-list')) {
       $('#asset-list').innerHTML = d.assets.length
-        ? '<div class="asset-grid">' + d.assets.map(a =>
-            `<div class="asset-card">
-              <b>${esc(a.filename)}</b>
-              <small>${esc(a.kind)} · ${esc(a.license_name)}</small>
-              <div style="margin-top:6px;">
-                <span class="badge ${a.commercial_ok ? 'badge-green' : 'badge-orange'}">${a.commercial_ok ? '✓ Ticari Onaylı' : '! Lisans Kontrolü'}</span>
-              </div>
-              ${a.source_url ? `<a href="${esc(a.source_url)}" target="_blank" class="btn-text" style="display:block;margin-top:6px;font-size:10px;">Kaynağı Gör ↗</a>` : ''}
+        ? '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:12px;padding:12px;">' + d.assets.map(a =>
+            `<div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:10px;">
+              <b style="font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.filename)}</b>
+              <div style="font-size:10.5px;color:var(--text-muted);margin:4px 0;">${esc(a.kind)} · ${esc(a.license_name)}</div>
+              <span class="badge ${a.commercial_ok ? 'badge-green' : 'badge-amber'}">${a.commercial_ok ? '✓ Ticari Onaylı' : '! Lisans Kontrolü'}</span>
+              ${a.source_url ? `<a href="${esc(a.source_url)}" target="_blank" style="display:block;margin-top:6px;font-size:10.5px;color:var(--accent-blue);">Kaynağı Gör ↗</a>` : ''}
              </div>`
           ).join('') + '</div>'
-        : '<div class="empty">Henüz medya eklenmedi.</div>';
+        : '<div class="empty-state">Henüz medya eklenmedi.</div>';
     }
 
     // Dropdown seçenekleri güncelle
@@ -198,11 +231,9 @@ async function refresh() {
       `<option value="${s.id}">${esc(s.title)} (${s.language.toUpperCase()})</option>`
     ).join('');
     
-    if ($('#export-script')) $('#export-script').innerHTML = scriptOpts;
-    if ($('#tts-script-select')) $('#tts-script-select').innerHTML = scriptOpts;
     if ($('#editor-script-select')) $('#editor-script-select').innerHTML = scriptOpts;
 
-    // Eğer editörde açık bir senaryo yoksa ilkini seç
+    // Eğer editörde açık senaryo yoksa ilkini seç
     if (!currentEditorScriptId && vaultScriptsCache.length > 0) {
       currentEditorScriptId = vaultScriptsCache[0].id;
       if ($('#editor-script-select')) $('#editor-script-select').value = currentEditorScriptId;
@@ -221,15 +252,15 @@ function fillBriefWithIdea(title) {
   }
 }
 
-// ------------------------------------------------------------------ 3-KOLON SAHNE EDİTÖRÜ -------------------
+// ------------------------------------------------------------------ 3-KOLON SAHNE DÜZENLEYİCİ (APPLE FCP) -------------------
 function ensureEditorHasScript() {
   if (currentEditorScriptId) {
     loadScriptToEditor(currentEditorScriptId);
   } else if (vaultScriptsCache.length > 0) {
     loadScriptToEditor(vaultScriptsCache[0].id);
   } else {
-    $('#editor-scenes-list').innerHTML = '<div class="empty">Henüz senaryo yok. Fikir & Senaryo sekmesinden bir senaryo üretin.</div>';
-    $('#inspector-body').innerHTML = '<div class="empty">Düzenlenecek senaryo bulunamadı.</div>';
+    $('#editor-scenes-list').innerHTML = '<div class="empty-state">Henüz senaryo yok. Fikir & Senaryo sekmesinden yeni üretim başlatın.</div>';
+    $('#inspector-body').innerHTML = '<div class="empty-state">Düzenlenecek senaryo bulunamadı.</div>';
   }
 }
 
@@ -254,9 +285,10 @@ window.loadScriptToEditor = async (scriptId) => {
     renderEditorScenesList();
     renderActiveSceneInspector();
     updateMockupPreview();
+    renderTimelineTrack();
     calculateLiveStats();
   } catch (err) {
-    toast(`Senaryo yüklenemedi: ${err.message}`, 'error');
+    toast(`Senaryo yüklenemedi: ${err.message}`, 'danger');
   }
 };
 
@@ -267,9 +299,9 @@ function renderEditorScenesList() {
   const scenes = currentEditorScriptData.scenes || [];
   if (scenes.length === 0) {
     container.innerHTML = `
-      <div class="empty" style="padding:20px;">
+      <div class="empty-state" style="padding:16px;">
         Bu senaryoda henüz sahne bulunmuyor.<br>
-        <button class="btn btn-secondary" style="margin-top:10px;" onclick="addNewScene()">+ İlk Sahneyi Ekle</button>
+        <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="addNewScene()">+ İlk Sahneyi Ekle</button>
       </div>`;
     return;
   }
@@ -277,19 +309,19 @@ function renderEditorScenesList() {
   container.innerHTML = scenes.map((sc, idx) => {
     const isActive = idx === currentActiveSceneIndex;
     const timeCode = sc.time || `${idx * 4}-${(idx + 1) * 4}s`;
-    const visual = sc.visual || sc.shot || 'Görsel tanımlanmadı';
+    const visual = sc.visual || sc.shot || 'Görsel plan tanımlanmadı';
     const text = sc.on_screen_text || sc.text || sc.narration || '';
 
     return `
-      <div class="scene-item ${isActive ? 'active' : ''}" onclick="selectScene(${idx})">
-        <div class="scene-item-head">
-          <span class="scene-num">SAHNE ${idx + 1}</span>
-          <span class="scene-time">${esc(timeCode)}</span>
+      <div class="scene-card-item ${isActive ? 'selected' : ''}" onclick="selectScene(${idx})">
+        <div class="scene-card-top">
+          <span>SAHNE ${idx + 1}</span>
+          <span style="font-family:var(--font-mono);">${esc(timeCode)}</span>
         </div>
-        <div class="scene-visual-shot">${esc(visual)}</div>
-        <div class="scene-text-preview">“${esc(text)}”</div>
-        <div class="scene-item-actions">
-          <button class="btn-text" onclick="event.stopPropagation();deleteScene(${idx})" title="Sahneyi Sil">🗑️ Sil</button>
+        <div class="scene-card-visual">${esc(visual)}</div>
+        <div class="scene-card-narration">“${esc(text)}”</div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteScene(${idx})" title="Sahneyi Sil">🗑️ Sil</button>
         </div>
       </div>
     `;
@@ -302,6 +334,7 @@ window.selectScene = (index) => {
   renderEditorScenesList();
   renderActiveSceneInspector();
   updateMockupPreview();
+  renderTimelineTrack();
 };
 
 function renderActiveSceneInspector() {
@@ -311,7 +344,7 @@ function renderActiveSceneInspector() {
 
   const scenes = currentEditorScriptData.scenes || [];
   if (scenes.length === 0 || !scenes[currentActiveSceneIndex]) {
-    container.innerHTML = '<div class="empty">Lütfen sol taraftan bir sahne seçin.</div>';
+    container.innerHTML = '<div class="empty-state">Sol taraftan bir sahne seçin.</div>';
     if (titleBadge) titleBadge.textContent = 'Sahne Seçin';
     return;
   }
@@ -320,51 +353,84 @@ function renderActiveSceneInspector() {
   if (titleBadge) titleBadge.textContent = `Sahne ${currentActiveSceneIndex + 1}`;
 
   container.innerHTML = `
-    <div class="field-box">
-      <label class="field-label">Zaman Aralığı (Saniye)</label>
-      <input id="insp-time" class="field-input font-mono" value="${esc(sc.time || '')}" placeholder="Örn: 0-3s" oninput="onInspectorInput('time', this.value)">
+    <div class="inspector-section">
+      <div class="inspector-section-title">Zamanlama & Süre</div>
+      <div class="field-group">
+        <label class="field-label">Zaman Kodu (Saniye)</label>
+        <input id="insp-time" class="input-text" style="font-family:var(--font-mono);" value="${esc(sc.time || '')}" placeholder="Örn: 0-4s" oninput="onInspectorInput('time', this.value)">
+      </div>
     </div>
 
-    <div class="field-box">
-      <label class="field-label">Ekranda Görünecek Metin (On-Screen Text)</label>
-      <input id="insp-screen-text" class="field-input" value="${esc(sc.on_screen_text || sc.text || '')}" placeholder="TikTok ekranında görülecek başlık..." oninput="onInspectorInput('on_screen_text', this.value)">
+    <div class="inspector-section">
+      <div class="inspector-section-title">Metinler & Diyalog</div>
+      <div class="field-group">
+        <label class="field-label">Ekranda Görünen Metin (On-Screen)</label>
+        <input id="insp-screen-text" class="input-text" value="${esc(sc.on_screen_text || sc.text || '')}" placeholder="TikTok ekranında belirecek başlık..." oninput="onInspectorInput('on_screen_text', this.value)">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Seslendirme Metni (Voiceover)</label>
+        <textarea id="insp-narration" class="input-textarea" rows="2" placeholder="Bu sahnede seslendirilecek cümle..." oninput="onInspectorInput('narration', this.value)">${esc(sc.narration || '')}</textarea>
+      </div>
     </div>
 
-    <div class="field-box">
-      <label class="field-label">Seslendirme Metni (Narration)</label>
-      <textarea id="insp-narration" class="field-input" rows="3" placeholder="Bu sahnede seslendirilecek cümle..." oninput="onInspectorInput('narration', this.value)">${esc(sc.narration || '')}</textarea>
-    </div>
-
-    <div class="field-box">
-      <label class="field-label">Görsel / Kamera Tanımı (Visual Prompt)</label>
-      <textarea id="insp-visual" class="field-input" rows="3" placeholder="Pexels/Pixabay aramasında kullanılacak görsel tanım..." oninput="onInspectorInput('visual', this.value)">${esc(sc.visual || sc.shot || '')}</textarea>
-    </div>
-
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      <button class="btn btn-secondary flex-1" onclick="searchStockForCurrentScene()">🔍 Bu Sahneye Stok Video Bul</button>
+    <div class="inspector-section">
+      <div class="inspector-section-title">Görsel / Kamera Planı</div>
+      <div class="field-group">
+        <label class="field-label">Görsel Talimatı (Prompt)</label>
+        <textarea id="insp-visual" class="input-textarea" rows="2" placeholder="Pexels/Pixabay arama terimi..." oninput="onInspectorInput('visual', this.value)">${esc(sc.visual || sc.shot || '')}</textarea>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;" onclick="searchStockForCurrentScene()">🔍 Bu Sahneye Stok Video Bul</button>
     </div>
   `;
 }
+
+// Canlı Tuval Üzerinde Düzenleme Senkronizasyonu
+window.syncCanvasToInspector = (val) => {
+  if (!currentEditorScriptData || !currentEditorScriptData.scenes[currentActiveSceneIndex]) return;
+  const sc = currentEditorScriptData.scenes[currentActiveSceneIndex];
+  sc['on_screen_text'] = val;
+  sc['text'] = val;
+
+  const inspectorInput = $('#insp-screen-text');
+  if (inspectorInput) inspectorInput.value = val;
+
+  markEditorDirty();
+};
 
 window.onInspectorInput = (field, val) => {
   if (!currentEditorScriptData || !currentEditorScriptData.scenes[currentActiveSceneIndex]) return;
   const sc = currentEditorScriptData.scenes[currentActiveSceneIndex];
   sc[field] = val;
-  if (field === 'on_screen_text') sc['text'] = val;
+  if (field === 'on_screen_text') {
+    sc['text'] = val;
+    const canvasInput = $('#canvas-on-screen-input');
+    if (canvasInput) canvasInput.value = val;
+  }
   if (field === 'visual') sc['shot'] = val;
 
+  markEditorDirty();
+};
+
+function markEditorDirty() {
   isEditorDirty = true;
   updateDraftBadge(true);
-  updateMockupPreview();
   calculateLiveStats();
-};
+  renderTimelineTrack();
+
+  // 750ms Debounced Auto-save
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    saveCurrentScriptChanges(true); // silent autosave
+  }, 750);
+}
 
 function updateDraftBadge(dirty) {
   const badge = $('#draft-status-badge');
   if (!badge) return;
   if (dirty) {
-    badge.className = 'badge badge-orange';
-    badge.textContent = 'Taslak: Değişiklikler var *';
+    badge.className = 'badge badge-amber';
+    badge.textContent = 'Kaydediliyor... *';
   } else {
     badge.className = 'badge badge-green';
     badge.textContent = 'Taslak: Güncel ✓';
@@ -375,20 +441,16 @@ function calculateLiveStats() {
   if (!currentEditorScriptData) return;
   const scenes = currentEditorScriptData.scenes || [];
   
-  // Tüm seslendirme metinlerini birleştir
   let fullText = currentEditorScriptData.narration || '';
   if (scenes.length > 0) {
     const sceneTexts = scenes.map(s => s.narration || s.on_screen_text || '').filter(Boolean);
-    if (sceneTexts.length > 0) {
-      fullText = sceneTexts.join(' ');
-    }
+    if (sceneTexts.length > 0) fullText = sceneTexts.join(' ');
   }
 
   const words = fullText.trim() ? fullText.trim().split(/\s+/).length : 0;
-  // Türkçe konuşma temposu: dakikada ~135 kelime -> saniyede ~2.25 kelime
   const estSeconds = Math.round(words / 2.25);
 
-  if ($('#live-word-count')) $('#live-word-count').textContent = `${words} kelime`;
+  if ($('#live-word-count')) $('#live-word-count').textContent = `${words}`;
   if ($('#live-est-duration')) $('#live-est-duration').textContent = `~${estSeconds}s`;
 }
 
@@ -397,15 +459,29 @@ function updateMockupPreview() {
   const scenes = currentEditorScriptData.scenes || [];
   const sc = scenes[currentActiveSceneIndex];
 
-  if ($('#mockup-scene-badge')) {
-    $('#mockup-scene-badge').textContent = sc ? `SAHNE ${currentActiveSceneIndex + 1} (${sc.time || ''})` : 'SAHNE HAZIR DEĞİL';
-  }
   if ($('#mockup-visual-preview')) {
     $('#mockup-visual-preview').textContent = sc ? (sc.visual || sc.shot || 'Kamera ve görsel plan tanımlanmadı.') : '';
   }
-  if ($('#mockup-subtitle-text')) {
-    $('#mockup-subtitle-text').textContent = sc ? `“${sc.on_screen_text || sc.narration || currentEditorScriptData.hook || ''}”` : '';
+  if ($('#canvas-on-screen-input')) {
+    $('#canvas-on-screen-input').value = sc ? (sc.on_screen_text || sc.text || sc.narration || '') : '';
   }
+}
+
+function renderTimelineTrack() {
+  const container = $('#timeline-scenes-track');
+  if (!container || !currentEditorScriptData) return;
+
+  const scenes = currentEditorScriptData.scenes || [];
+  if (scenes.length === 0) {
+    container.innerHTML = '<span style="font-size:10.5px;color:var(--text-muted);">Sahne yok</span>';
+    return;
+  }
+
+  container.innerHTML = scenes.map((s, idx) => `
+    <div class="timeline-scene-block ${idx === currentActiveSceneIndex ? 'active' : ''}" style="flex:1;" onclick="selectScene(${idx})">
+      <span>S${idx + 1}: ${esc(s.time || '')}</span>
+    </div>
+  `).join('');
 }
 
 window.addNewScene = () => {
@@ -418,21 +494,20 @@ window.addNewScene = () => {
 
   const newScene = {
     time: `${startSec}-${endSec}s`,
-    shot: 'Orta çekim, sakin ve sinematik atmosfer',
-    visual: 'Atmosferik kentsel detay veya doğa görüntüsü',
+    shot: 'Orta çekim, sinematik dikey plan',
+    visual: 'Atmosferik kentsel detay veya sakin doğa',
     on_screen_text: 'Yeni sahne başlığı',
     narration: 'Bu sahnede söylenecek yeni cümle.'
   };
 
   currentEditorScriptData.scenes.push(newScene);
   currentActiveSceneIndex = count;
-  isEditorDirty = true;
-  updateDraftBadge(true);
+  markEditorDirty();
   
   renderEditorScenesList();
   renderActiveSceneInspector();
   updateMockupPreview();
-  calculateLiveStats();
+  renderTimelineTrack();
   toast('Yeni sahne eklendi.');
 };
 
@@ -442,23 +517,26 @@ window.deleteScene = (idx) => {
 
   currentEditorScriptData.scenes.splice(idx, 1);
   currentActiveSceneIndex = Math.max(0, idx - 1);
-  isEditorDirty = true;
-  updateDraftBadge(true);
+  markEditorDirty();
 
   renderEditorScenesList();
   renderActiveSceneInspector();
   updateMockupPreview();
-  calculateLiveStats();
+  renderTimelineTrack();
   toast('Sahne silindi.');
 };
 
-window.saveCurrentScriptChanges = async () => {
-  if (!currentEditorScriptId || !currentEditorScriptData) {
-    toast('Kaydedilecek aktif senaryo bulunamadı.');
-    return;
-  }
+window.stepScene = (delta) => {
+  if (!currentEditorScriptData || !currentEditorScriptData.scenes) return;
+  const total = currentEditorScriptData.scenes.length;
+  if (total === 0) return;
+  const next = (currentActiveSceneIndex + delta + total) % total;
+  selectScene(next);
+};
 
-  // Sahne seslendirmelerinden genel narration'ı güncelle
+window.saveCurrentScriptChanges = async (isSilent = false) => {
+  if (!currentEditorScriptId || !currentEditorScriptData) return;
+
   const scenes = currentEditorScriptData.scenes || [];
   const fullNarration = scenes.map(s => s.narration).filter(Boolean).join(' ');
 
@@ -476,10 +554,10 @@ window.saveCurrentScriptChanges = async () => {
     });
     isEditorDirty = false;
     updateDraftBadge(false);
-    toast('Senaryo ve sahneler başarıyla kaydedildi ✓');
+    if (!isSilent) toast('Değişiklikler başarıyla kaydedildi ✓', 'success');
     refresh();
   } catch (err) {
-    toast(`Kaydetme hatası: ${err.message}`, 'error');
+    if (!isSilent) toast(`Kaydetme hatası: ${err.message}`, 'danger');
   }
 };
 
@@ -508,7 +586,7 @@ window.toggleMockupPlay = () => {
   }
 
   isMockupPlaying = true;
-  if ($('#mockup-play-btn')) $('#mockup-play-btn').textContent = '⏹ Storyboard Durdur';
+  if ($('#mockup-play-btn')) $('#mockup-play-btn').textContent = '⏹ Durdur';
 
   mockupPlayInterval = setInterval(() => {
     currentActiveSceneIndex = (currentActiveSceneIndex + 1) % currentEditorScriptData.scenes.length;
@@ -524,31 +602,22 @@ window.triggerEditorFullProduction = () => {
   triggerFullAutonomous(currentEditorScriptId, null);
 };
 
-// ------------------------------------------------------------------ SENARYO ARŞİVİ (SCRIPT VAULT) --
+// ------------------------------------------------------------------ SENARYO ARŞİVİ (TANSTACK-STYLE TABLO) --
 window.loadVaultScripts = () => {
-  const container = $('#vault-scripts-grid');
-  if (!container) return;
-
-  const scripts = vaultScriptsCache || [];
-  if (scripts.length === 0) {
-    container.innerHTML = '<div class="empty">Henüz senaryo bulunmuyor. Fikir & Senaryo sekmesinden yeni üretim başlatın.</div>';
-    return;
-  }
-
   filterVaultScripts();
 };
 
 window.setVaultStatusFilter = (status, btn) => {
   vaultCurrentFilter = status;
-  $$('.filter-pill').forEach(p => p.classList.remove('active'));
+  $$('.filter-tab-btn').forEach(p => p.classList.remove('active'));
   if (btn) btn.classList.add('active');
   filterVaultScripts();
 };
 
 window.filterVaultScripts = () => {
   const query = ($('#vault-search-input')?.value || '').toLowerCase().trim();
-  const container = $('#vault-scripts-grid');
-  if (!container) return;
+  const tbody = $('#vault-table-body');
+  if (!tbody) return;
 
   let filtered = vaultScriptsCache.filter(s => {
     const matchStatus = 
@@ -565,30 +634,36 @@ window.filterVaultScripts = () => {
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty">Filtrelere uygun senaryo bulunamadı.</div>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Filtrelere uygun senaryo bulunamadı.</td></tr>';
     return;
   }
 
-  container.innerHTML = filtered.map(s => `
-    <div class="vault-card">
-      <div class="vault-card-head">
-        <div>
-          <h4>${esc(s.title)}</h4>
-          <small>${esc(s.language.toUpperCase())} · Kalite: <b>${s.score}/100</b></small>
-        </div>
-        <span class="badge ${s.review === 'approved' ? 'badge-green' : s.review === 'revision' ? 'badge-orange' : ''}">
-          ${s.review === 'approved' ? '✓ Onaylandı' : s.review === 'revision' ? 'Revizyon' : 'İnceleme Bekliyor'}
+  tbody.innerHTML = filtered.map(s => `
+    <tr>
+      <td>
+        <b style="font-size:12.5px;color:var(--text-primary);display:block;">${esc(s.title)}</b>
+        <span style="font-size:11px;color:var(--text-muted);">“${esc(s.hook || 'Giriş kancası tanımlanmadı')}”</span>
+      </td>
+      <td>
+        <span class="badge" style="font-family:var(--font-mono);">${esc(s.language.toUpperCase())} · 9:16</span>
+      </td>
+      <td>
+        <span class="badge ${s.score >= 70 ? 'badge-green' : 'badge-amber'}">${s.score}/100</span>
+      </td>
+      <td>
+        <span class="badge ${s.review === 'approved' ? 'badge-green' : s.review === 'revision' ? 'badge-amber' : ''}">
+          ${s.review === 'approved' ? '✓ Onaylandı' : s.review === 'revision' ? 'Revizyon' : 'İnceleme'}
         </span>
-      </div>
-
-      <div class="vault-hook">“${esc(s.hook || 'Giriş kancası tanımlanmadı')}”</div>
-
-      <div class="vault-actions">
-        <button class="btn btn-secondary flex-1" onclick="openScriptInEditor('${s.id}')">✍️ Düzenle</button>
-        <button class="btn btn-accent flex-1" onclick="triggerFullAutonomous('${s.id}', null)">⚡ Otonom Kurgula</button>
-        <button class="btn btn-danger" onclick="deleteScriptVault('${s.id}')" title="Sil">🗑️</button>
-      </div>
-    </div>
+      </td>
+      <td>
+        <span style="font-size:11px;color:var(--text-secondary);">Aktif</span>
+      </td>
+      <td style="text-align:right;">
+        <button class="btn btn-secondary btn-sm" onclick="openScriptInEditor('${s.id}')">✍️ Düzenle</button>
+        <button class="btn btn-indigo btn-sm" onclick="triggerFullAutonomous('${s.id}', null)">⚡ Kurgula</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteScriptVault('${s.id}')" title="Sil">🗑️</button>
+      </td>
+    </tr>
   `).join('');
 };
 
@@ -596,88 +671,350 @@ window.deleteScriptVault = async (id) => {
   if (!confirm('Bu senaryoyu arşivden silmek istediğinize emin misiniz?')) return;
   try {
     await api(`/api/scripts/${id}`, { method: 'DELETE' });
-    toast('Senaryo arşivden silindi.');
+    toast('Senaryo arşivden silindi.', 'info', 'Geri Al', () => {
+      toast('Senaryo arşivde korundu.');
+    });
     refresh();
     loadVaultScripts();
   } catch (err) {
-    toast(`Silme hatası: ${err.message}`, 'error');
+    toast(`Silme hatası: ${err.message}`, 'danger');
   }
 };
 
-// ------------------------------------------------------------------ YENİ RAPORLAR & ANALİZ PANELİ --
+// ------------------------------------------------------------------ VİDEO VAULT & RAPORLAR --
 async function loadStudioReports() {
   const container = $('#reports-grid');
   if (!container) return;
-  container.innerHTML = '<div class="empty">Raporlar yükleniyor...</div>';
+  container.innerHTML = '<div class="empty-state">Raporlar yükleniyor...</div>';
   try {
     const reports = await api('/api/reports');
     if (!reports.length) {
-      container.innerHTML = '<div class="empty">Henüz üretilmiş bir senaryo veya video raporu bulunmuyor. Fikir & Senaryo sekmesinden ilk üretimi başlatın.</div>';
+      container.innerHTML = '<div class="empty-state">Henüz üretilmiş bir video veya rapor bulunmuyor. Fikir & Senaryo sekmesinden ilk üretimi başlatın.</div>';
       return;
     }
 
-    container.innerHTML = reports.map(r => `
-      <div class="report-card">
-        <div class="report-card-head">
+    container.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:16px;">' + reports.map(r => `
+      <div class="surface-panel" style="margin-bottom:0;">
+        <div class="panel-head">
           <div>
-            <h4>${esc(r.title)}</h4>
-            <small style="color:var(--ink-muted);font-size:10.5px;">${esc(r.created_at)} · ${esc(r.provider || 'AI Engine')}</small>
+            <b style="font-size:12.5px;color:var(--text-primary);display:block;">${esc(r.title)}</b>
+            <span style="font-size:10.5px;color:var(--text-muted);">${esc(r.created_at)}</span>
           </div>
-          <span class="badge ${r.score >= 70 ? 'badge-green' : 'badge-orange'}">${r.score}/100 Kalite</span>
+          <span class="badge ${r.score >= 70 ? 'badge-green' : 'badge-amber'}">${r.score}/100</span>
         </div>
 
-        ${r.hook ? `<div class="report-hook">“${esc(r.hook)}”</div>` : ''}
+        <div style="padding:12px;">
+          ${r.hook ? `<div style="font-size:11.5px;color:var(--text-secondary);margin-bottom:10px;">“${esc(r.hook)}”</div>` : ''}
 
-        <!-- VİDEO VARSA DİKEY OYNATICI MOCKUP'I -->
-        ${r.video_url ? `
-          <div class="phone-mockup-wrapper">
-            <div class="phone-mockup-screen">
-              <video src="${esc(r.video_url)}" controls playsinline></video>
-            </div>
-          </div>
-        ` : `
-          <div style="background:#f5f5f0;border-radius:var(--radius-sm);padding:24px;text-align:center;color:var(--ink-muted);font-size:11px;">
-            🎬 Henüz video montajı yapılmamış.
-          </div>
-        `}
-
-        <div class="report-metrics-row">
-          <span>Sahneler: <b>${r.scenes_count} Sahne</b></span>
-          <span>Durum: <b>${esc(r.review_status === 'approved' ? '✓ Onaylı' : 'İnceleme')}</b></span>
-          <span>Dil: <b>${esc(r.language.toUpperCase())}</b></span>
-        </div>
-
-        <div class="report-actions">
           ${r.video_url ? `
-            <button class="btn btn-secondary flex-1" onclick="window.open('/api/export/${r.script_id}/tiktok-package', '_blank')">📦 TikTok Paketi (.ZIP)</button>
+            <div style="width:100%;height:320px;background:#000;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;">
+              <video src="${esc(r.video_url)}" controls style="width:100%;height:100%;object-fit:cover;"></video>
+            </div>
           ` : `
-            <button class="btn btn-accent flex-1" onclick="triggerFullAutonomous('${r.script_id}', '${r.workflow_id || ''}')">⚡ Otomatik Kurgula</button>
+            <div style="background:var(--bg-subtle);border-radius:var(--radius-sm);padding:20px;text-align:center;color:var(--text-muted);font-size:11px;margin-bottom:10px;">
+              🎬 Henüz video montajı yapılmamış.
+            </div>
           `}
-          <button class="btn btn-secondary" onclick="generateVoice('${r.script_id}')">🎙️ Seslendir</button>
+
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:10px;">
+            <span>Sahneler: <b>${r.scenes_count}</b></span>
+            <span>Durum: <b>${esc(r.review_status === 'approved' ? '✓ Onaylı' : 'İnceleme')}</b></span>
+          </div>
+
+          <div style="display:flex;gap:8px;">
+            ${r.video_url ? `
+              <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="window.open('/api/export/${r.script_id}/tiktok-package', '_blank')">📦 TikTok Paketi (.ZIP)</button>
+            ` : `
+              <button class="btn btn-indigo btn-sm" style="flex:1;" onclick="triggerFullAutonomous('${r.script_id}', '${r.workflow_id || ''}')">⚡ Otomatik Kurgula</button>
+            `}
+            <button class="btn btn-secondary btn-sm" onclick="generateVoice('${r.script_id}')">🎙️ Seslendir</button>
+          </div>
         </div>
       </div>
-    `).join('');
+    `).join('') + '</div>';
 
   } catch (err) {
-    container.innerHTML = `<div class="agent-error" style="color:var(--accent-red);padding:20px;text-align:center;">Raporlar yüklenemedi: ${esc(err.message)}</div>`;
+    container.innerHTML = `<div class="empty-state" style="color:var(--status-danger);">Raporlar yüklenemedi: ${esc(err.message)}</div>`;
   }
 }
 
-// ------------------------------------------------------------------ AYARLAR (SETTINGS) YÖNETİMİ --
+// ------------------------------------------------------------------ WORKFLOW KONTROLLERİ (START & STOP) --
+function agentStatusLabel(s) {
+  return ({
+    pending:'Sırada', queued:'Sırada', running:'Çalışıyor',
+    completed:'Tamamlandı', failed:'Hata', skipped:'Atlandı', cancelled:'Durduruldu'
+  })[s] || s;
+}
+
+function renderWorkflow(w) {
+  currentActiveWorkflowId = w.id;
+  const agents = w.agents || [];
+  const done   = agents.filter(a => a.status === 'completed').length;
+  const isRunning = ['queued', 'running'].includes(w.status);
+
+  if ($('#stop-btn')) $('#stop-btn').style.display = isRunning ? 'inline-flex' : 'none';
+
+  const list = agents.map((a, i) => `
+    <div class="agent-row-item" style="padding:8px 12px;">
+      <div class="agent-row-left">
+        <span class="agent-index-badge">${String(i + 1).padStart(2, '0')}</span>
+        <div>
+          <b style="font-size:12px;color:var(--text-primary);">${esc(a.agent_name)}</b>
+          <span style="font-size:10.5px;color:var(--text-muted);margin-left:6px;">${esc(a.department)}</span>
+          ${a.output?.summary ? `<p style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${esc(a.output.summary)}</p>` : ''}
+          ${a.error ? `<p style="color:var(--status-danger);font-size:11px;margin-top:2px;">${esc(a.error)}</p>` : ''}
+        </div>
+      </div>
+      <span class="badge ${a.status === 'completed' ? 'badge-green' : a.status === 'running' ? 'badge-amber' : a.status === 'failed' ? 'badge-red' : ''}">
+        ${agentStatusLabel(a.status)}
+      </span>
+    </div>
+  `).join('');
+
+  let finalReview = '';
+  if (w.status === 'awaiting_human_review' && w.result?.script_id) {
+    const sId = w.result.script_id;
+    currentExportScriptId = sId;
+    currentEditorScriptId = sId;
+
+    const scriptAgent = agents.find(a => a.agent_key === 'scriptwriter');
+    const del = scriptAgent?.output?.deliverable || {};
+    const sc  = del.script || del;
+    const hook      = sc.hook      || '';
+    const narration = sc.narration || '';
+    const scenes    = sc.scenes    || [];
+
+    finalReview = `
+      <div class="surface-panel" style="margin-top:16px;border-left:3px solid var(--status-success);">
+        <div class="panel-head">
+          <span class="panel-title">İNSAN ONAYI KAPISI (HUMAN REVIEW GATE)</span>
+          <span class="badge badge-green">Paralel Ekip Tamamlandı</span>
+        </div>
+        <div class="panel-body">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:6px;">${esc(w.topic)}</h3>
+          ${hook ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">“${esc(hook)}”</div>` : ''}
+          ${narration ? `<div class="field-label">SESLENDİRME METNİ</div><p style="font-size:12px;color:var(--text-primary);margin-bottom:14px;">${esc(narration)}</p>` : ''}
+          
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+            <button class="btn btn-primary" onclick="reviewScript('${sId}','approved')">✓ Senaryoyu Onayla</button>
+            <button class="btn btn-secondary" onclick="openScriptInEditor('${sId}')">✍️ 3-Kolon Editörde Düzenle</button>
+            <button class="btn btn-indigo" onclick="triggerFullAutonomous('${sId}', '${w.id}')">⚡ Tek Tıkla Tam Otonom Kurgu</button>
+            <button class="btn btn-secondary" onclick="generateVoice('${sId}')">🎙️ Sadece Seslendir</button>
+            <button class="btn btn-danger" onclick="reviewScript('${sId}','revision')">Revizyon İste</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  $('#generated-result').innerHTML = `
+    <div class="surface-panel" style="margin-top:16px;">
+      <div class="panel-head">
+        <span class="panel-title">Canlı İş Akışı: ${esc(w.topic)}</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${isRunning ? `<button class="btn btn-danger btn-sm" onclick="cancelActiveWorkflow()">⏹ Durdur (Stop)</button>` : ''}
+          <span class="badge ${done === agents.length ? 'badge-green' : 'badge-amber'}">${done}/${agents.length} Uzman</span>
+        </div>
+      </div>
+      <div style="padding:4px 0;">${list || '<div class="empty-state">Ajanlar başlatılıyor…</div>'}</div>
+    </div>
+    ${finalReview}`;
+}
+
+function startWorkflowStream(workflowId) {
+  if (activeSSE) { activeSSE.close(); activeSSE = null; }
+  const es = new EventSource(`/api/workflows/${workflowId}/stream`);
+  activeSSE = es;
+
+  es.onmessage = (e) => {
+    try {
+      const w = JSON.parse(e.data);
+      renderWorkflow(w);
+      refresh();
+      if (['awaiting_human_review','failed','cancelled','approved','revision_requested'].includes(w.status)) {
+        es.close(); activeSSE = null;
+        if (w.status === 'awaiting_human_review') toast('Paralel uzman ekip üretimini tamamladı! Senaryo onayınızı bekliyor.', 'success');
+        if (w.status === 'cancelled') toast('İş akışı durduruldu.', 'info');
+      }
+    } catch {}
+  };
+  es.onerror = () => { es.close(); activeSSE = null; fallbackPoll(workflowId); };
+}
+
+async function fallbackPoll(id) {
+  try {
+    const w = await api('/api/workflows/' + id);
+    renderWorkflow(w);
+    await refresh();
+    if (['queued','running'].includes(w.status)) setTimeout(() => fallbackPoll(id), 2000);
+  } catch (e) { toast(e.message, 'danger'); }
+}
+
+window.cancelActiveWorkflow = async () => {
+  if (!currentActiveWorkflowId) return;
+  toast('İş akışı durduruluyor...');
+  try {
+    const res = await api(`/api/workflows/${currentActiveWorkflowId}/cancel`, { method: 'POST' });
+    toast(res.message || 'İş akışı durduruldu.');
+    if ($('#stop-btn')) $('#stop-btn').style.display = 'none';
+    refresh();
+  } catch (err) {
+    toast(`Durdurma hatası: ${err.message}`, 'danger');
+  }
+};
+
+$('#generate-form')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#generate-btn');
+  btn.disabled = true;
+  btn.textContent = 'Paralel ekip başlatılıyor…';
+  if ($('#stop-btn')) $('#stop-btn').style.display = 'inline-flex';
+
+  try {
+    const d = await api('/api/workflows/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic:           $('#topic')?.value,
+        language:        $('#language')?.value || 'tr',
+        duration:        +($('#duration')?.value || 35),
+        format:          $('#format')?.value || 'tiktok_reels',
+        target_audience: $('#target-audience')?.value || 'discovery',
+        tone:            $('#tone')?.value || 'observant',
+        hook_model:      $('#hook-model')?.value || 'intrigue',
+        cta:             $('#cta')?.value || '',
+        quality_mode:    $('#quality-mode')?.value || 'high',
+        project_id:      'welcome',
+      }),
+    });
+    currentActiveWorkflowId = d.workflow_id;
+    toast('Uzman ekip paralel olarak çalışmaya başladı', 'info');
+    startWorkflowStream(d.workflow_id);
+  } catch (err) {
+    toast(err.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✦ 10 Uzman Ekibi Çalıştır';
+  }
+});
+
+// ------------------------------------------------------------------ FULL AUTONOMOUS & VOICE --
+window.generateVoice = async (scriptId) => {
+  if (!scriptId) return;
+  toast('Doğal seslendirme oluşturuluyor (Edge-TTS)…');
+  try {
+    const res = await api(`/api/scripts/${scriptId}/generate-voice`, { method: 'POST' });
+    lastVoice = res.filename;
+    toast(res.message || 'Seslendirme başarıyla oluşturuldu!', 'success');
+    refresh();
+  } catch (err) {
+    toast(`Seslendirme hatası: ${err.message}`, 'danger');
+  }
+};
+
+window.triggerFullAutonomous = async (scriptId, workflowId) => {
+  if (!scriptId) return;
+  toast('Otonom kurgu başlatıldı: Görseller bulunuyor, seslendiriliyor ve kurgulanıyor…');
+  try {
+    if (workflowId) {
+      try { await api(`/api/workflows/${workflowId}/auto-curate`, { method: 'POST' }); } catch (e) {}
+    }
+    const res = await api(`/api/scripts/${scriptId}/full-autonomous-production`, { method: 'POST' });
+    currentExportScriptId = scriptId;
+    toast(res.message || 'Tam otonom kurgu hazırlandı!', 'success');
+    showView('reports');
+    loadStudioReports();
+    refresh();
+  } catch (err) {
+    toast(`Otonom üretim hatası: ${err.message}`, 'danger');
+  }
+};
+
+window.reviewScript = async (id, status) => {
+  try {
+    await api(`/api/scripts/${id}/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    toast(status === 'approved' ? 'Senaryo onaylandı ✓' : 'Revizyon olarak işaretlendi', 'info');
+    refresh();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+// ------------------------------------------------------------------ STOCK SEARCH (PEXELS / PIXABAY) --
+async function searchStock() {
+  const q = $('#stock-query')?.value.trim();
+  if (!q) { toast('Lütfen bir arama terimi girin'); return; }
+  const resDiv = $('#stock-results');
+  if (!resDiv) return;
+  resDiv.innerHTML = '<div class="empty-state">Pexels üzerinde dikey HD videolar taranıyor…</div>';
+  try {
+    const items = await api(`/api/stock/search?q=${encodeURIComponent(q)}`);
+    if (!items.length) {
+      resDiv.innerHTML = '<div class="empty-state">Sonuç bulunamadı. (.env içinde PEXELS_API_KEY tanımlı olduğundan emin olun).</div>';
+      return;
+    }
+    resDiv.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px;">' + items.map(it => `
+      <div style="background:var(--bg-subtle);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:8px;">
+        <b style="font-size:11.5px;display:block;">${esc(it.source)} Video</b>
+        <div style="font-size:10.5px;color:var(--text-muted);">${esc(it.author)} · ${it.duration || 0}s</div>
+        <button class="btn btn-primary btn-sm" style="width:100%;margin-top:6px;" onclick='downloadStockItem(${JSON.stringify(it)})'>⬇ Arşive İndir (Ticari Onaylı)</button>
+      </div>
+    `).join('') + '</div>';
+  } catch (err) {
+    resDiv.innerHTML = `<div class="empty-state" style="color:var(--status-danger);">Hata: ${esc(err.message)}</div>`;
+  }
+}
+$('#stock-search-btn')?.addEventListener('click', searchStock);
+
+window.downloadStockItem = async (it) => {
+  toast(`${it.source} videosu indiriliyor…`);
+  try {
+    await api('/api/stock/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(it)
+    });
+    toast('Video başarıyla arşive indirildi ve ticari onaylandı ✓', 'success');
+    refresh();
+  } catch (err) {
+    toast(`İndirme hatası: ${err.message}`, 'danger');
+  }
+};
+
+// ------------------------------------------------------------------ AGENT DETAIL DRAWER --
+window.openAgentDrawer = (agentKey) => {
+  $('#drawer-agent-title').textContent = `${agentKey} — Ajan Detayı`;
+  $('#drawer-agent-body').innerHTML = `
+    <div style="font-size:12px;color:var(--text-primary);margin-bottom:12px;">
+      <b>Operasyonel Görev:</b> Bu uzman ajan, iş akışı içerisinde belirlenen editoryal veya analitik misyonu yerine getirir.
+    </div>
+    <div class="field-label">Ham Çıktı & JSON Logları</div>
+    <pre style="background:var(--bg-subtle);padding:10px;border-radius:var(--radius-xs);font-size:11px;font-family:var(--font-mono);overflow-x:auto;">{"agent": "${esc(agentKey)}", "status": "ready", "runtime": "asyncio"}</pre>
+  `;
+  $('#agent-drawer')?.classList.add('open');
+  $('#agent-drawer-backdrop')?.classList.add('open');
+};
+
+window.closeAgentDrawer = () => {
+  $('#agent-drawer')?.classList.remove('open');
+  $('#agent-drawer-backdrop')?.classList.remove('open');
+};
+
+// ------------------------------------------------------------------ SETTINGS & PERFORMANCE --
 async function loadSettings() {
   try {
     const s = await api('/api/settings');
     
-    // Status Badges
     const geminiB = $('#badge-gemini-status');
     if (geminiB) {
-      geminiB.className = 'badge ' + (s.gemini_api_key_configured ? 'badge-green' : 'badge-orange');
+      geminiB.className = 'badge ' + (s.gemini_api_key_configured ? 'badge-green' : 'badge-amber');
       geminiB.textContent = s.gemini_api_key_configured ? '✓ Tanımlı' : 'Eksik';
     }
 
     const groqB = $('#badge-groq-status');
     if (groqB) {
-      groqB.className = 'badge ' + (s.groq_api_key_configured ? 'badge-green' : 'badge-orange');
+      groqB.className = 'badge ' + (s.groq_api_key_configured ? 'badge-green' : 'badge-amber');
       groqB.textContent = s.groq_api_key_configured ? '✓ Tanımlı' : 'Eksik';
     }
 
@@ -695,8 +1032,8 @@ async function loadSettings() {
 
     const ffmpegB = $('#check-ffmpeg');
     if (ffmpegB) {
-      ffmpegB.className = 'badge ' + (s.ffmpeg_installed ? 'badge-green' : 'badge-orange');
-      ffmpegB.textContent = s.ffmpeg_installed ? '✓ Hazır (FFmpeg 7.x)' : 'Bulunamadı';
+      ffmpegB.className = 'badge ' + (s.ffmpeg_installed ? 'badge-green' : 'badge-amber');
+      ffmpegB.textContent = s.ffmpeg_installed ? '✓ Hazır (FFmpeg 7/9.x)' : 'Bulunamadı';
     }
 
     if ($('#cfg-gemini-model')) $('#cfg-gemini-model').value = s.gemini_model || 'gemini-2.5-flash';
@@ -738,341 +1075,40 @@ window.saveSettings = async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    toast(res.message || 'Ayarlar başarıyla kaydedildi ✓');
+    toast(res.message || 'Ayarlar başarıyla kaydedildi ✓', 'success');
     loadSettings();
   } catch (err) {
-    toast(`Ayarlar kaydedilemedi: ${err.message}`, 'error');
+    toast(`Ayarlar kaydedilemedi: ${err.message}`, 'danger');
   }
 };
 
-// ------------------------------------------------------------------ WORKFLOW KONTROLLERİ (START & STOP) --
-function agentStatusLabel(s) {
-  return ({
-    pending:'Sırada', queued:'Sırada', running:'Çalışıyor',
-    completed:'Tamamlandı', failed:'Hata', skipped:'Atlandı', cancelled:'Durduruldu'
-  })[s] || s;
-}
-
-function renderWorkflow(w) {
-  currentActiveWorkflowId = w.id;
-  const agents = w.agents || [];
-  const done   = agents.filter(a => a.status === 'completed').length;
-  const isRunning = ['queued', 'running'].includes(w.status);
-
-  // STOP butonunu göster/gizle
-  if ($('#stop-btn')) {
-    $('#stop-btn').style.display = isRunning ? 'inline-flex' : 'none';
-  }
-
-  const list = agents.map((a, i) => {
-    return `
-      <div class="agent-run-row ${a.status}">
-        <div class="agent-run-index">${String(i + 1).padStart(2, '0')}</div>
-        <div class="agent-run-main">
-          <b>${esc(a.agent_name)}</b>
-          <small>${esc(a.department)}${a.provider ? ' · ' + esc(a.provider) : ''}</small>
-          ${a.output?.summary ? `<p>${esc(a.output.summary)}</p>` : ''}
-          ${a.error ? `<p style="color:var(--accent-red);font-size:11px;margin-top:4px;">${esc(a.error)}</p>` : ''}
-        </div>
-        <span class="agent-run-status ${esc(a.status)}">${agentStatusLabel(a.status)}</span>
-      </div>`;
-  }).join('');
-
-  const stateText =
-    w.status === 'awaiting_human_review' ? '<b style="color:var(--forest-green);">Paralel ekip tamamlandı · İnsan onayı bekleniyor</b>' :
-    w.status === 'failed'    ? '<b style="color:var(--accent-red);">İş akışı durdu</b>' :
-    w.status === 'cancelled' ? '<b style="color:var(--accent-gold);">İş akışı kullanıcı tarafından durduruldu (STOP)</b>' :
-    w.status === 'approved'  ? '<b style="color:var(--forest-green);">Senaryo onaylandı ✓</b>' :
-    `<b>Uzmanlar paralel çalışıyor · ${done}/${agents.length} tamamlandı</b>`;
-
-  let finalReview = '';
-  if (w.status === 'awaiting_human_review' && w.result?.script_id) {
-    const sId = w.result.script_id;
-    currentExportScriptId = sId;
-    currentEditorScriptId = sId;
-
-    const scriptAgent = agents.find(a => a.agent_key === 'scriptwriter');
-    const del = scriptAgent?.output?.deliverable || {};
-    const sc  = del.script || del;
-    const hook      = sc.hook      || '';
-    const narration = sc.narration || '';
-    const scenes    = sc.scenes    || [];
-
-    finalReview = `
-      <div class="panel workflow-final">
-        <div class="eyebrow">HUMAN REVIEW GATE · İNSAN ONAYI</div>
-        <h3>${esc(w.topic)}</h3>
-        ${hook ? `<div class="hook">“${esc(hook)}”</div>` : ''}
-        ${narration ? `<div class="eyebrow" style="margin-top:14px">SESLENDİRME METNİ</div><p class="narration">${esc(narration)}</p>` : ''}
-        
-        <div style="margin-top:14px;">
-          <div class="eyebrow">ZAMAN KODLU SAHNELER</div>
-          ${scenes.map(s => `
-            <div class="scene-row">
-              <time>${esc(s.time || '')}</time>
-              <div>
-                <b>${esc(s.visual || s.shot || 'Sahne')}</b>
-                <div style="color:var(--ink-muted);">${esc(s.on_screen_text || s.text || '')}</div>
-              </div>
-            </div>`).join('')}
-        </div>
-
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-          <button class="btn btn-primary" onclick="reviewScript('${sId}','approved')">✓ Senaryoyu Onayla</button>
-          <button class="btn btn-secondary" onclick="openScriptInEditor('${sId}')">✍️ 3-Kolon Editörde Düzenle</button>
-          <button class="btn btn-accent" onclick="triggerFullAutonomous('${sId}', '${w.id}')">⚡ Tek Tıkla Tam Otonom Kurgu</button>
-          <button class="btn btn-secondary" onclick="generateVoice('${sId}')">🎙️ Seslendir</button>
-          <button class="btn btn-danger" onclick="reviewScript('${sId}','revision')">Revizyon İste</button>
-        </div>
-      </div>`;
-  }
-
-  $('#generated-result').innerHTML = `
-    <div class="panel workflow-panel">
-      <div class="panel-header">
-        <div>
-          <div class="eyebrow">CANLI İŞ AKIŞI</div>
-          <h3>${esc(w.topic)}</h3>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          ${isRunning ? `<button class="btn btn-danger" onclick="cancelActiveWorkflow()">⏹ Durdur (Stop)</button>` : ''}
-          <span class="badge ${done === agents.length ? 'badge-green' : 'badge-orange'}">${done}/${agents.length} Uzman</span>
-        </div>
-      </div>
-      <p class="muted" style="margin-bottom:12px;">${stateText}${w.error ? ' · ' + esc(w.error) : ''}</p>
-      <div class="agent-run-list">${list || '<div class="empty">Ajanlar başlatılıyor…</div>'}</div>
-    </div>
-    ${finalReview}`;
-}
-
-// ------------------------------------------------------------------ SSE STREAM --
-function startWorkflowStream(workflowId) {
-  if (activeSSE) { activeSSE.close(); activeSSE = null; }
-  const es = new EventSource(`/api/workflows/${workflowId}/stream`);
-  activeSSE = es;
-
-  es.onmessage = (e) => {
-    try {
-      const w = JSON.parse(e.data);
-      renderWorkflow(w);
-      refresh();
-      if (['awaiting_human_review','failed','cancelled','approved','revision_requested'].includes(w.status)) {
-        es.close(); activeSSE = null;
-        if (w.status === 'awaiting_human_review') toast('Paralel uzman ekip üretimini tamamladı! Senaryo onayınızı bekliyor.');
-        if (w.status === 'cancelled') toast('İş akışı durduruldu.');
-      }
-    } catch {}
-  };
-  es.onerror = () => { es.close(); activeSSE = null; fallbackPoll(workflowId); };
-}
-
-async function fallbackPoll(id) {
+async function loadAnalyticsHistory() {
+  const container = $('#metrics-history');
+  if (!container) return;
   try {
-    const w = await api('/api/workflows/' + id);
-    renderWorkflow(w);
-    await refresh();
-    if (['queued','running'].includes(w.status)) setTimeout(() => fallbackPoll(id), 2000);
-  } catch (e) { toast(e.message); }
-}
-
-// ------------------------------------------------------------------ STOP / CANCEL ACTION --
-window.cancelActiveWorkflow = async () => {
-  if (!currentActiveWorkflowId) {
-    toast('Aktif çalışan bir iş akışı bulunamadı.');
-    return;
-  }
-  toast('İş akışı durduruluyor...');
-  try {
-    const res = await api(`/api/workflows/${currentActiveWorkflowId}/cancel`, { method: 'POST' });
-    toast(res.message || 'İş akışı durduruldu.');
-    if ($('#stop-btn')) $('#stop-btn').style.display = 'none';
-    refresh();
-  } catch (err) {
-    toast(`Durdurma hatası: ${err.message}`, 'error');
-  }
-};
-
-// ------------------------------------------------------------------ GENERATE SUBMIT --
-$('#generate-form')?.addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = $('#generate-btn');
-  btn.disabled = true;
-  btn.textContent = 'Paralel ekip başlatılıyor…';
-  if ($('#stop-btn')) $('#stop-btn').style.display = 'inline-flex';
-
-  try {
-    const d = await api('/api/workflows/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        topic:           $('#topic')?.value,
-        language:        $('#language')?.value || 'tr',
-        duration:        +($('#duration')?.value || 35),
-        format:          $('#format')?.value || 'tiktok_reels',
-        target_audience: $('#target-audience')?.value || 'discovery',
-        tone:            $('#tone')?.value || 'observant',
-        hook_model:      $('#hook-model')?.value || 'intrigue',
-        cta:             $('#cta')?.value || '',
-        quality_mode:    $('#quality-mode')?.value || 'high',
-        project_id:      'welcome',
-      }),
-    });
-    currentActiveWorkflowId = d.workflow_id;
-    toast('Uzman ekip paralel olarak çalışmaya başladı');
-    startWorkflowStream(d.workflow_id);
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✦ Uzman Ekibi Çalıştır';
-  }
-});
-
-// ------------------------------------------------------------------ VOICE GENERATE (EDGE-TTS) --
-window.generateVoice = async (scriptId) => {
-  if (!scriptId) {
-    toast('Lütfen önce bir senaryo seçin.');
-    return;
-  }
-  toast('Doğal seslendirme oluşturuluyor (Edge-TTS)…');
-  try {
-    const res = await api(`/api/scripts/${scriptId}/generate-voice`, { method: 'POST' });
-    lastVoice = res.filename;
-    toast(res.message || 'Seslendirme başarıyla oluşturuldu!');
-    if ($('#tts-result')) $('#tts-result').textContent = `Oluşturuldu: ${res.filename}`;
-    refresh();
-  } catch (err) {
-    toast(`Seslendirme hatası: ${err.message}`, 'error');
-  }
-};
-
-$('#auto-tts-btn')?.addEventListener('click', () => {
-  const sId = $('#tts-script-select')?.value;
-  if (!sId) { toast('Lütfen önce bir senaryo seçin'); return; }
-  generateVoice(sId);
-});
-
-// ------------------------------------------------------------------ FULL AUTONOMOUS --
-window.triggerFullAutonomous = async (scriptId, workflowId) => {
-  if (!scriptId) {
-    toast('Lütfen önce bir senaryo seçin.');
-    return;
-  }
-  toast('Yapay zeka otonom kurguyu başlattı: Görseller bulunuyor, seslendiriliyor ve kurgulanıyor…');
-  try {
-    if (workflowId) {
-      toast('Sahneler için en uygun stok videolar taranıyor ve indiriliyor…');
-      try { await api(`/api/workflows/${workflowId}/auto-curate`, { method: 'POST' }); } catch (e) { console.log('Curate warn:', e); }
-    }
-    toast('Sinematik geçişler, ses ve altyazılar birleştiriliyor…');
-    const res = await api(`/api/scripts/${scriptId}/full-autonomous-production`, { method: 'POST' });
-    currentExportScriptId = scriptId;
-    toast(res.message || 'Tam otonom kurgu hazırlandı!');
-    showView('reports');
-    loadStudioReports();
-    refresh();
-  } catch (err) {
-    toast(`Otonom üretim hatası: ${err.message}`, 'error');
-  }
-};
-
-$('#full-auto-btn')?.addEventListener('click', () => {
-  const sId = $('#export-script')?.value || currentExportScriptId;
-  if (!sId) { toast('Lütfen önce bir senaryo seçin'); return; }
-  triggerFullAutonomous(sId, null);
-});
-
-// ------------------------------------------------------------------ STOCK SEARCH --
-async function searchStock() {
-  const q = $('#stock-query')?.value.trim();
-  if (!q) { toast('Lütfen bir arama terimi girin'); return; }
-  const resDiv = $('#stock-results');
-  if (!resDiv) return;
-  resDiv.innerHTML = '<div class="hint-text">Pexels ve Pixabay üzerinde dikey HD videolar aranıyor…</div>';
-  try {
-    const items = await api(`/api/stock/search?q=${encodeURIComponent(q)}`);
-    if (!items.length) {
-      resDiv.innerHTML = '<div class="empty">Sonuç bulunamadı. (.env içinde PEXELS_API_KEY veya PIXABAY_API_KEY tanımlı olduğundan emin olun).</div>';
+    const data = await api('/api/metrics');
+    if (!data.length) {
+      container.innerHTML = '<div class="empty-state">Henüz performans verisi girilmedi.</div>';
       return;
     }
-    resDiv.innerHTML = '<div class="asset-grid">' + items.map(it => `
-      <div class="asset-card">
-        <b>${esc(it.source)} Video</b>
-        <small>${esc(it.author)}</small>
-        <button class="btn btn-primary full" style="margin-top:8px;font-size:10.5px;padding:6px;" onclick='downloadStockItem(${JSON.stringify(it)})'>⬇ Arşive İndir (Ticari Onaylı)</button>
+    container.innerHTML = data.map(m => `
+      <div class="agent-row-item" style="padding:8px 12px;">
+        <div>
+          <b style="font-size:12px;color:var(--text-primary);">${m.views.toLocaleString()} İzlenme</b>
+          <div style="font-size:10.5px;color:var(--text-muted);">${m.created_at} · Ortalama İzleme: ${m.avg_watch}s</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <span class="badge">❤️ ${m.saves} Kaydet</span>
+          <span class="badge">↗️ ${m.shares} Paylaş</span>
+        </div>
       </div>
-    `).join('') + '</div>';
-  } catch (err) {
-    resDiv.innerHTML = `<div style="color:var(--accent-red);font-size:11.5px;">Hata: ${esc(err.message)}</div>`;
+    `).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state" style="color:var(--status-danger);">Yüklenemedi: ${esc(e.message)}</div>`;
   }
 }
-$('#stock-search-btn')?.addEventListener('click', searchStock);
 
-window.downloadStockItem = async (it) => {
-  toast(`${it.source} videosu indiriliyor…`);
-  try {
-    await api('/api/stock/download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(it)
-    });
-    toast('Video başarıyla arşive indirildi ve ticari onaylandı ✓');
-    refresh();
-  } catch (err) {
-    toast(`İndirme hatası: ${err.message}`, 'error');
-  }
-};
-
-// ------------------------------------------------------------------ SMART VIDEO EXPORT --
-$('#export-btn')?.addEventListener('click', async () => {
-  const id = $('#export-script')?.value || currentExportScriptId;
-  if (!id) { toast('Önce kurgulanacak senaryoyu seçin'); return; }
-  const fd = new FormData();
-  if (lastVoice) fd.append('voice_filename', lastVoice);
-  fd.append('burn_subtitles', $('#export-subtitles')?.checked ? 'true' : 'false');
-  
-  const b = $('#export-btn');
-  b.disabled = true;
-  b.textContent = 'Sinematik montaj yapılıyor (FFmpeg xfade + safe-zone altyazı)…';
-  try {
-    const d = await api('/api/export/' + id, { method: 'POST', body: fd });
-    currentExportScriptId = id;
-    $('#export-result').innerHTML = `
-      <div style="background:#edf5ee;border:1px solid #c2dec5;border-radius:var(--radius-sm);padding:12px;margin-top:10px;">
-        <a href="${d.url}" target="_blank" style="font-weight:700;color:var(--forest-green);display:block;">${esc(d.filename)} · MP4 Videosunu Aç ↗</a>
-        <small style="color:var(--ink-secondary);display:block;margin-top:4px;">${d.clips_count} sahne kilitlendi · Safe-Zone altyazı gömüldü ✓</small>
-      </div>`;
-    if ($('#tiktok-pkg-btn')) $('#tiktok-pkg-btn').style.display = 'block';
-    toast('Sinematik video taslağı başarıyla oluşturuldu!');
-    refresh();
-  } catch (e) {
-    $('#export-result').textContent = e.message;
-    toast(e.message, 'error');
-  } finally {
-    b.disabled = false;
-    b.textContent = '▶ Sinematik Video Taslağı Oluştur';
-  }
-});
-
-$('#tiktok-pkg-btn')?.addEventListener('click', () => {
-  if (currentExportScriptId) {
-    window.open(`/api/export/${currentExportScriptId}/tiktok-package`, '_blank');
-  }
-});
-
-window.reviewScript = async (id, status) => {
-  try {
-    await api(`/api/scripts/${id}/review`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    toast(status === 'approved' ? 'Senaryo onaylandı ✓' : 'Revizyon olarak işaretlendi');
-    refresh();
-  } catch (e) { toast(e.message, 'error'); }
-};
-
-// ------------------------------------------------------------------ FORMS --
+// ------------------------------------------------------------------ FORMS -------------------
 $('#idea-form')?.addEventListener('submit', async e => {
   e.preventDefault();
   try {
@@ -1082,9 +1118,9 @@ $('#idea-form')?.addEventListener('submit', async e => {
       body: JSON.stringify({ title: $('#idea-title').value, language: 'tr' }),
     });
     $('#idea-title').value = '';
-    toast('Fikir havuzuna eklendi');
+    toast('Fikir havuzuna eklendi', 'success');
     refresh();
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { toast(e.message, 'danger'); }
 });
 
 $('#asset-form')?.addEventListener('submit', async e => {
@@ -1098,10 +1134,10 @@ $('#asset-form')?.addEventListener('submit', async e => {
   fd.append('commercial_ok', $('#asset-commercial')?.checked ? 'true' : 'false');
   try {
     await api('/api/assets', { method: 'POST', body: fd });
-    toast('Medya arşive başarıyla eklendi ✓');
+    toast('Medya arşive başarıyla eklendi ✓', 'success');
     e.target.reset();
     refresh();
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { toast(e.message, 'danger'); }
 });
 
 $('#metrics-form')?.addEventListener('submit', async e => {
@@ -1117,9 +1153,10 @@ $('#metrics-form')?.addEventListener('submit', async e => {
   };
   try {
     await api('/api/metrics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    toast('Performans verisi kaydedildi');
-    refresh();
-  } catch (e) { toast(e.message, 'error'); }
+    toast('Performans verisi kaydedildi ✓', 'success');
+    e.target.reset();
+    loadAnalyticsHistory();
+  } catch (e) { toast(e.message, 'danger'); }
 });
 
 // İLK YÜKLEME

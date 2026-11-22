@@ -3,809 +3,749 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Eski Usul AI Studio — Next-Gen AI Video Workstation</title>
+  <title>Medyam — Modern AI Video Studio</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="studio-shell">
+<div class="app-shell">
 
-  <!-- ==================== 1. COMPACT SIDEBAR ==================== -->
-  <aside class="sidebar">
-    <div class="sidebar-top">
-      <div class="brand-badge" title="Eski Usul Studio · Istanbul">
-        <div class="brand-icon">EU</div>
-        <div class="brand-info">
-          <span class="brand-title">ESKİ USUL</span>
-          <span class="brand-sub">Studio Workstation</span>
-        </div>
+  <!-- ==================== 1. COMPACT DARK SIDEBAR (LINEAR STYLE) ==================== -->
+  <aside class="sidebar" id="app-sidebar">
+    <div class="sidebar-header">
+      <div class="brand-symbol">M</div>
+      <div class="brand-text">
+        <span class="brand-name">MEDYAM</span>
+        <span class="brand-edition">STUDIO v1.0</span>
       </div>
     </div>
 
-    <div class="nav-group-title">ÜRETİM KOKPİTİ</div>
-    <nav class="nav-list">
-      <button class="nav-item active" data-view="overview">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-        <span>Kokpit & Süreç</span>
-      </button>
+    <div class="sidebar-nav-wrap">
+      <div class="nav-section-title">Üretim Hattı</div>
+      <nav>
+        <button class="nav-item active" data-view="overview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Kökpit</span>
+        </button>
 
-      <button class="nav-item" data-view="ideas">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
-        <span>Fikir & Senaryo Lab</span>
-      </button>
+        <button class="nav-item" data-view="ideas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+          <span>Fikir & Senaryo</span>
+        </button>
 
-      <button class="nav-item" data-view="editor">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-        <span>3-Kolon Sahne Editörü</span>
-      </button>
+        <button class="nav-item" data-view="editor">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          <span>Sahne Düzenleyici</span>
+        </button>
 
-      <button class="nav-item" data-view="scripts-vault">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-        <span>Senaryo Arşivi</span>
-      </button>
+        <button class="nav-item" data-view="scripts-vault">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          <span>Senaryo Arşivi</span>
+        </button>
 
-      <button class="nav-item" data-view="assets">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-        <span>Medya & Kurgu Masası</span>
-      </button>
+        <button class="nav-item" data-view="assets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+          <span>Medya Kütüphanesi</span>
+        </button>
 
-      <button class="nav-item" data-view="reports">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-        <span>Raporlar & Video Vault</span>
-      </button>
-    </nav>
+        <button class="nav-item" data-view="reports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+          <span>Video Vault & Render</span>
+        </button>
+      </nav>
 
-    <div class="nav-group-title" style="margin-top:20px;">SİSTEM & EKİP</div>
-    <nav class="nav-list">
-      <button class="nav-item" data-view="agents">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-        <span>10 Uzman Operasyon Paneli</span>
-      </button>
+      <div class="nav-section-title" style="margin-top:16px;">Sistem & İzleme</div>
+      <nav>
+        <button class="nav-item" data-view="agents">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span>10 Uzman Ajan Ekibi</span>
+        </button>
 
-      <button class="nav-item" data-view="settings">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-        <span>Ayarlar & API Yönetimi</span>
-      </button>
+        <button class="nav-item" data-view="analytics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          <span>Yayın Performansı</span>
+        </button>
 
-      <button class="nav-item" data-view="analytics">
-        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-        <span>Yayın Performansı</span>
-      </button>
-    </nav>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Ayarlar & Modeller</span>
+        </button>
+      </nav>
+    </div>
 
-    <div class="sidebar-bottom">
+    <div class="sidebar-footer">
       <div class="system-status-indicator">
-        <span class="live-dot"></span>
-        <div class="live-meta">
-          <b>Yerel Çalışma Alanı</b>
-          <small>127.0.0.1:8765 · Online</small>
-        </div>
+        <span class="status-dot-pulse"></span>
+        <span>Yerel Stüdyo · 8765</span>
       </div>
+      <span class="badge" style="background:#1F2228;border-color:#2D3139;color:#9CA3AF;font-size:10px;">Local-First</span>
     </div>
   </aside>
 
-  <!-- ==================== MAIN WORKSPACE ==================== -->
-  <main class="main-content">
+  <!-- ==================== 2. MAIN APPLICATION WORKSPACE ==================== -->
+  <main class="main-wrapper">
     
-    <!-- FIXED COMPACT HEADER -->
+    <!-- Top Header -->
     <header class="top-header">
       <div class="header-left">
-        <div class="context-path">WORKSPACE / ISTANBUL · TIKTOK & REELS</div>
-        <h1 id="page-title" class="page-title">Kokpit & Süreç</h1>
+        <button class="mobile-nav-toggle" id="btn-toggle-sidebar" aria-label="Menüyü Aç/Kapat">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div>
+          <div class="breadcrumb-path">STUDIO / TIKTOK & REELS WORKSPACE</div>
+          <h1 class="header-title" id="page-title">Kökpit</h1>
+        </div>
       </div>
 
       <div class="header-right">
-        <div class="engine-indicator">
-          <span class="engine-dot"></span>
-          <span>Gemini 2.5 + Groq Aktif</span>
+        <div class="badge badge-green">
+          <span class="status-dot-pulse" style="width:6px;height:6px;"></span>
+          <span id="header-engine-status">Gemini + Groq + Pexels Aktif</span>
         </div>
-        <span class="privacy-badge">🔒 Local-First</span>
+        <button class="btn btn-primary btn-sm" onclick="showView('ideas')">+ Yeni İçerik Üret</button>
       </div>
     </header>
 
-    <!-- ==================== 1. KOKPİT (OVERVIEW) ==================== -->
-    <section id="overview" class="view active">
-      <!-- OPERASYONEL HERO BANNER -->
-      <div class="op-banner">
-        <div class="op-banner-left">
-          <div class="op-tag">AKTİF PROJE OPERASYONU</div>
-          <h2 id="active-project-title" class="op-title">İstanbul Boğazı ve Yavaş Yaşam</h2>
-          <p id="active-project-desc" class="op-desc">Son senaryo hazır. Seslendirme ve sahne bazlı sinematik montaj onayınızı bekliyor.</p>
-          <div class="op-action-bar">
-            <button class="btn btn-primary" onclick="showView('ideas')">Yeni Senaryo Üret ↗</button>
-            <button class="btn btn-secondary" onclick="showView('editor')">Sahne Editörünü Aç ✍️</button>
-            <button class="btn btn-accent" onclick="showView('reports')">Paketi Aç & İndir 📦</button>
-          </div>
-        </div>
-        <div class="op-banner-right">
-          <div class="mini-art">
-            <span>SLOW DOWN</span>
-            <b>LOOK AROUND</b>
-          </div>
-        </div>
-      </div>
+    <!-- Page Body Container -->
+    <div class="page-container">
 
-      <!-- TIKLANABİLİR FİLTRELİ KPI KARTLARI -->
-      <div class="kpi-row">
-        <div class="kpi-box clickable" onclick="showView('ideas')">
-          <span class="kpi-k">Fikir Havuzu</span>
-          <b id="stat-ideas" class="kpi-v">0</b>
-          <small>Fikirleri incele ↗</small>
-        </div>
-        <div class="kpi-box clickable" onclick="showView('scripts-vault')">
-          <span class="kpi-k">Hazırlanan Senaryo</span>
-          <b id="stat-scripts" class="kpi-v">0</b>
-          <small>Arşivde filtrele ↗</small>
-        </div>
-        <div class="kpi-box clickable" onclick="showView('assets')">
-          <span class="kpi-k">Medya Dosyası</span>
-          <b id="stat-assets" class="kpi-v">0</b>
-          <small>Kütüphaneye git ↗</small>
-        </div>
-        <div class="kpi-box kpi-alert clickable" onclick="showView('reports')">
-          <span class="kpi-k">İnceleme Bekleyen</span>
-          <b id="stat-pending" class="kpi-v">0</b>
-          <small>Karar ver ↗</small>
-        </div>
-      </div>
-
-      <!-- GERÇEK ÜRETİM PROGRESS ADIMLARI (STEPPER) -->
-      <div class="panel" style="margin-bottom:20px;">
-        <div class="panel-header">
-          <div>
-            <div class="eyebrow">PIPELINE İLERLEMESİ</div>
-            <h3 class="panel-h3">6 Aşamalı Üretim Hattı</h3>
-          </div>
-          <span class="muted-tag">Tam Otonom · İnsan Onayı Kapısı</span>
-        </div>
-
-        <div class="stepper-track">
-          <div class="step-card clickable" onclick="showView('ideas')">
-            <div class="step-num">01</div>
-            <b>Araştır</b>
-            <small>DDGS Web Taraması</small>
-            <div class="step-status active">Tamamlandı ✓</div>
-          </div>
-          <div class="step-arrow">→</div>
-          <div class="step-card clickable" onclick="showView('ideas')">
-            <div class="step-num">02</div>
-            <b>Yaz</b>
-            <small>Hook & Sahneler</small>
-            <div class="step-status active">Tamamlandı ✓</div>
-          </div>
-          <div class="step-arrow">→</div>
-          <div class="step-card clickable" onclick="showView('editor')">
-            <div class="step-num">03</div>
-            <b>Doğrula</b>
-            <small>Fact Check & Haklar</small>
-            <div class="step-status active">85/100 Puan</div>
-          </div>
-          <div class="step-arrow">→</div>
-          <div class="step-card clickable" onclick="showView('assets')">
-            <div class="step-num">04</div>
-            <b>Seslendir</b>
-            <small>Edge-TTS Türkçe</small>
-            <div class="step-status">Hazır</div>
-          </div>
-          <div class="step-arrow">→</div>
-          <div class="step-card clickable" onclick="showView('assets')">
-            <div class="step-num">05</div>
-            <b>Medya Eşle</b>
-            <small>Pexels & Pixabay</small>
-            <div class="step-status">Otonom Arama</div>
-          </div>
-          <div class="step-arrow">→</div>
-          <div class="step-card clickable" onclick="showView('reports')">
-            <div class="step-num">06</div>
-            <b>Render Et</b>
-            <small>Sinematik 9:16 MP4</small>
-            <div class="step-status">Kurgu Masası</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- İKİLİ ÇALIŞMA ALANI: SON SENARYOLAR + AJAN OPERASYON ÖZETİ -->
-      <div class="two-col-layout">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">LATEST SCRIPTS</div>
-              <h3 class="panel-h3">Son Hazırlanan Senaryolar</h3>
-            </div>
-            <button class="btn-text" onclick="showView('scripts-vault')">Tüm Arşiv ↗</button>
-          </div>
-          <div id="recent-scripts" class="item-stack empty">Senaryolar yükleniyor...</div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">ACTIVE AGENT CREW</div>
-              <h3 class="panel-h3">Ajan Ekibi Operasyon Özeti</h3>
-            </div>
-            <button class="btn-text" onclick="showView('agents')">Detaylı Ekip ↗</button>
-          </div>
-          <div id="agent-mini" class="agent-compact-list"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==================== 2. FİKİR & SENARYO LABORATUVARI ==================== -->
-    <section id="ideas" class="view">
-      <div class="view-intro">
-        <div class="eyebrow">CONTENT LAB · PROFESYONEL ÜRETİM BRİEF'İ</div>
-        <h2 class="view-h2">Fikirden Hikâyeye.</h2>
-        <p class="view-p">Yalnızca konu ve süre değil; hedef kitle, ton, format ve hook modeliyle zenginleştirilmiş tam teşekküllü prodüksiyon brief'i.</p>
-      </div>
-
-      <div class="two-col-layout">
-        <!-- SOL FORM: GELİŞMİŞ BRİEF FORM -->
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">YENİ ÜRETİM BRİEF'İ</div>
-              <h3 class="panel-h3">İçerik Parametreleri</h3>
-            </div>
-          </div>
-
-          <form id="generate-form">
-            <div class="field-box">
-              <label class="field-label" for="topic">Konu / İçerik Fikri *</label>
-              <input id="topic" class="field-input" required placeholder="Örn: İstanbul Boğazı gün batımı, vapurda bir akşam...">
-            </div>
-
-            <div class="field-grid-2">
-              <div class="field-box">
-                <label class="field-label" for="language">İçerik Dili</label>
-                <select id="language" class="field-input">
-                  <option value="tr">Türkçe (Birincil)</option>
-                  <option value="en">English (Global)</option>
-                  <option value="ar">العربية (Bölgesel)</option>
-                </select>
-              </div>
-              <div class="field-box">
-                <label class="field-label" for="duration">Hedef Süre</label>
-                <select id="duration" class="field-input">
-                  <option value="25">25 saniye (Hızlı & Dinamik)</option>
-                  <option value="35" selected>35 saniye (İdeal TikTok Formatı)</option>
-                  <option value="45">45 saniye (Geniş Anlatı)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="field-grid-2">
-              <div class="field-box">
-                <label class="field-label" for="format">Format & Platform</label>
-                <select id="format" class="field-input">
-                  <option value="tiktok_reels" selected>TikTok & Instagram Reels (9:16)</option>
-                  <option value="youtube_shorts">YouTube Shorts</option>
-                  <option value="cinematic_story">Sakin Kültürel Keşif</option>
-                </select>
-              </div>
-              <div class="field-box">
-                <label class="field-label" for="target-audience">Hedef Kitle Segmenti</label>
-                <select id="target-audience" class="field-input">
-                  <option value="discovery" selected>Keşif İzleyicisi (Yeni yerler arayanlar)</option>
-                  <option value="nostalgia">Nostalji & Yerel İzleyici</option>
-                  <option value="international">Kültürel Merak (Global & Diaspora)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="field-grid-2">
-              <div class="field-box">
-                <label class="field-label" for="tone">İçerik Tonu</label>
-                <select id="tone" class="field-input">
-                  <option value="observant" selected>Meraklı, Gözlemci & Sıcak</option>
-                  <option value="reflective">Sakin & Düşündürücü (Slow Living)</option>
-                  <option value="poetic">Kentsel Şiirsellik</option>
-                </select>
-              </div>
-              <div class="field-box">
-                <label class="field-label" for="hook-model">Açılış (Hook) Modeli</label>
-                <select id="hook-model" class="field-input">
-                  <option value="intrigue" selected>Merak Uyandıran İlk Gözlem</option>
-                  <option value="sensory">Duyusal / Atmosferik Giriş</option>
-                  <option value="direct_statement">Net & Çarpıcı Tespit</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- GELİŞMİŞ OPSİYONLAR ACCORDION -->
-            <details class="adv-details" style="margin-top:10px;">
-              <summary class="adv-summary">⚙️ Gelişmiş Editoryal Seçenekler (İsteğe Bağlı)</summary>
-              <div class="adv-body" style="padding-top:10px;">
-                <div class="field-box">
-                  <label class="field-label" for="cta">Call to Action (CTA)</label>
-                  <input id="cta" class="field-input" placeholder="Örn: 'Sen nerede yavaşlıyorsun?' (Boş bırakılabilir)">
-                </div>
-                <div class="field-box">
-                  <label class="field-label">Üretim Modu</label>
-                  <select id="quality-mode" class="field-input">
-                    <option value="high" selected>Yüksek Kalite Modu (Tam Doğrulama & Araştırma)</option>
-                    <option value="fast">Hızlı Taslak Modu (Düşük Token / Hızlı Çıktı)</option>
-                  </select>
-                </div>
-              </div>
-            </details>
-
-            <div class="button-split-row" style="margin-top:16px;">
-              <button class="btn btn-primary flex-1" type="submit" id="generate-btn">
-                <span>✦ Uzman Ekibi Çalıştır</span>
-              </button>
-              <button class="btn btn-danger" type="button" id="stop-btn" style="display:none;" onclick="cancelActiveWorkflow()">
-                <span>⏹ Durdur (Stop)</span>
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- SAĞ: FİKİR HAVUZU -->
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">IDEA BACKLOG</div>
-              <h3 class="panel-h3">Fikir Havuzu</h3>
-            </div>
-          </div>
-          <form id="idea-form" class="inline-input-bar">
-            <input id="idea-title" class="field-input" placeholder="Aklına gelen yeni bir konu ekle..." required>
-            <button class="btn btn-secondary" type="submit">Ekle +</button>
-          </form>
-          <div id="idea-list" class="item-stack empty" style="margin-top:14px;">Henüz fikir eklenmedi.</div>
-        </div>
-      </div>
-
-      <!-- CANLI İŞ AKIŞI ALANI -->
-      <div id="generated-result"></div>
-    </section>
-
-    <!-- ==================== 3. YENİ: 3-KOLONLU SAHNE EDİTÖRÜ ==================== -->
-    <section id="editor" class="view">
-      <div class="view-intro">
-        <div class="eyebrow">SCENE STUDIO · 3-KOLONLU SAHNE DÜZENLEYİCİ</div>
-        <h2 class="view-h2">Sahne Bazlı Üretim & Storyboard.</h2>
-        <p class="view-p">Senaryoyu düz metin olarak değil, zaman kodlu sahneler halinde düzenleyin, kelime ritmini canlı takip edin ve 9:16 ekranda simüle edin.</p>
-      </div>
-
-      <!-- EDİTÖR ÜST BAR: SEÇİLİ SENARYO & İSTATİSTİKLER -->
-      <div class="editor-header-bar">
-        <div class="editor-select-wrap">
-          <label class="eyebrow">DÜZENLENEN SENARYO</label>
-          <select id="editor-script-select" onchange="loadScriptToEditor(this.value)"></select>
-        </div>
-
-        <div class="editor-stats-bar">
-          <div class="stat-pill">
-            <span class="stat-pill-label">Kelime Sayısı</span>
-            <b id="live-word-count">0</b>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-pill-label">Tahmini Süre</span>
-            <b id="live-est-duration">0s</b>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-pill-label">Okuma Hızı</span>
-            <b>~130 k/dk</b>
-          </div>
-          <div id="draft-status-badge" class="badge badge-green">Taslak: Güncel ✓</div>
-        </div>
-
-        <div class="editor-top-actions">
-          <button class="btn btn-secondary" onclick="saveCurrentScriptChanges()">💾 Değişiklikleri Kaydet</button>
-          <button class="btn btn-accent" onclick="triggerEditorFullProduction()">⚡ Bu Senaryoyu Kurgula</button>
-        </div>
-      </div>
-
-      <!-- 3 KOLONLU ÇALIŞMA MASASI -->
-      <div class="editor-three-columns">
+      <!-- ==================== 1. KÖKPİT (OVERVIEW) ==================== -->
+      <section id="overview" class="view-section active">
         
-        <!-- KOLON 1: SAHNE LİSTESİ -->
-        <div class="editor-col col-scenes">
-          <div class="col-header">
-            <h4>Sahneler & Zamanlama</h4>
-            <button class="btn-text" onclick="addNewScene()">+ Sahne Ekle</button>
-          </div>
-          <div id="editor-scenes-list" class="scenes-list-scroll">
-            <div class="empty">Senaryo seçildiğinde sahneler burada listelenir.</div>
-          </div>
-        </div>
-
-        <!-- KOLON 2: 9:16 DİKEY MOBİL STORYBOARD & ÖNİZLEME -->
-        <div class="editor-col col-preview">
-          <div class="col-header">
-            <h4>9:16 Dikey Mobil Önizleme</h4>
-            <span class="badge">TikTok / Reels Safe-Zone</span>
-          </div>
-
-          <div class="phone-mockup-frame">
-            <div class="phone-speaker"></div>
-            <div class="phone-screen-area" id="mockup-screen">
-              <!-- Canlı Altyazı ve Sahne Bilgisi -->
-              <div class="mockup-scene-indicator" id="mockup-scene-badge">SAHNE 1 (0-3s)</div>
-              
-              <div class="mockup-visual-desc" id="mockup-visual-preview">
-                Kamera: En güçlü atmosfer görüntüsü, Boğaz gün batımı.
-              </div>
-
-              <!-- TikTok Safe-Zone Altyazı Simülatörü -->
-              <div class="mockup-safezone-sub" id="mockup-subtitle-text">
-                "Biraz yavaşlamaya ne dersin?"
-              </div>
-
-              <!-- TikTok Sağ Aksiyon İkonları Simülasyonu -->
-              <div class="mockup-tiktok-actions">
-                <div class="tt-action-btn">❤️<span>12.4K</span></div>
-                <div class="tt-action-btn">💬<span>482</span></div>
-                <div class="tt-action-btn">🔖<span>2.1K</span></div>
-                <div class="tt-action-btn">↗️<span>Share</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="mockup-controls">
-            <button class="btn btn-secondary flex-1" id="mockup-play-btn" onclick="toggleMockupPlay()">▶ Storyboard Oynat</button>
-          </div>
-        </div>
-
-        <!-- KOLON 3: SEÇİLİ SAHNE AYARLARI & METİN EDİTÖRÜ -->
-        <div class="editor-col col-inspector">
-          <div class="col-header">
-            <h4>Sahne İnceleyici (Inspector)</h4>
-            <span id="inspector-scene-title" class="badge">Sahne Seçin</span>
-          </div>
-
-          <div id="inspector-body" class="inspector-form">
-            <div class="empty">Düzenlemek için sol taraftan bir sahneye tıklayın.</div>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- ==================== 4. YENİ: SENARYO ARŞİVİ & FİLTRELEME ==================== -->
-    <section id="scripts-vault" class="view">
-      <div class="view-intro">
-        <div class="eyebrow">SCRIPT VAULT · GELİŞMİŞ ARŞİV</div>
-        <h2 class="view-h2">Senaryo Arşivi & Arama Masası.</h2>
-        <p class="view-p">Üretilmiş tüm senaryoları durumlarına, dillerine ve kalite puanlarına göre filtreleyin; düzenleyin, kopyalayın veya silin.</p>
-      </div>
-
-      <!-- FİLTRE ÇUBUĞU -->
-      <div class="vault-filter-bar">
-        <div class="search-wrap">
-          <input id="vault-search-input" class="field-input" placeholder="Senaryo başlığı veya hook içinde ara..." oninput="filterVaultScripts()">
-        </div>
-
-        <div class="filter-pills">
-          <button class="filter-pill active" onclick="setVaultStatusFilter('all', this)">Tümü</button>
-          <button class="filter-pill" onclick="setVaultStatusFilter('approved', this)">✓ Onaylananlar</button>
-          <button class="filter-pill" onclick="setVaultStatusFilter('pending', this)">İnceleme Bekleyenler</button>
-          <button class="filter-pill" onclick="setVaultStatusFilter('revision', this)">Revizyon İstenenler</button>
-        </div>
-      </div>
-
-      <!-- SENARYO KARTLARI GRİDİ -->
-      <div id="vault-scripts-grid" class="vault-grid">
-        <div class="empty">Senaryolar yükleniyor...</div>
-      </div>
-    </section>
-
-    <!-- ==================== 5. MEDYA & SİNEMATİK KURGU MASASI ==================== -->
-    <section id="assets" class="view">
-      <div class="view-intro">
-        <div class="eyebrow">PRODUCTION SUITE · GÖRSEL & KURGU</div>
-        <h2 class="view-h2">Medya, Ses & Sinematik Kurgu.</h2>
-        <p class="view-desc">Pexels ve Pixabay'den dikey stok videolar bulun, Edge-TTS ile seslendirin ve FFmpeg xfade geçişleriyle dikey videoyu montajlayın.</p>
-      </div>
-
-      <div class="two-col-layout">
-        <!-- SOL PANEL: STOK ARAMA -->
-        <div class="panel">
-          <div class="panel-header">
+        <!-- Active Project Strip (Linear Style) -->
+        <div class="project-strip">
+          <div class="project-strip-left">
+            <span class="project-status-pill">AKTİF PROJE</span>
             <div>
-              <div class="eyebrow">STOCK MEDIA FINDER</div>
-              <h3 class="panel-h3">Pexels & Pixabay Dikey Video Bul</h3>
+              <b id="active-project-title" style="font-size:13px;">İstanbul Boğazı ve Yavaş Yaşam</b>
+              <div id="active-project-desc" style="color:var(--text-muted);font-size:11.5px;">Son senaryo ve sahneler kilitli. İnceleme ve kurgu onayınızı bekliyor.</div>
             </div>
           </div>
-          <p class="muted-tag" style="margin-bottom:12px;">Sahneler için en uygun dikey HD stok videoları arayın ve tek tıkla arşive ekleyin.</p>
-          <div class="inline-input-bar">
-            <input id="stock-query" class="field-input" placeholder="Örn: Istanbul sunset boat, coffee slow motion...">
-            <button class="btn btn-primary" id="stock-search-btn" type="button">Ara 🔍</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="showView('editor')">✍️ Sahne Editöründe Aç</button>
+            <button class="btn btn-indigo btn-sm" onclick="showView('reports')">⚡ Video Vault'u Aç</button>
           </div>
-          <div id="stock-results" class="stock-search-results"></div>
-
-          <hr class="card-divider">
-
-          <div class="eyebrow">YEREL MEDYA YÜKLE</div>
-          <h3 class="panel-h3" style="margin-bottom:12px;">Kendi Çekimlerini Ekle</h3>
-          <form id="asset-form">
-            <div class="field-box">
-              <label class="field-label" for="asset-file">Dosya Seç</label>
-              <input type="file" id="asset-file" class="field-input" required accept="video/*,image/*,audio/*">
-            </div>
-            <div class="field-grid-2">
-              <div class="field-box">
-                <label class="field-label" for="asset-kind">Tür</label>
-                <select id="asset-kind" class="field-input">
-                  <option value="video">Video</option>
-                  <option value="image">Görsel / Fotoğraf</option>
-                  <option value="audio">Müzik / Ses</option>
-                </select>
-              </div>
-              <div class="field-box">
-                <label class="field-label" for="asset-license">Lisans</label>
-                <select id="asset-license" class="field-input">
-                  <option>Pexels License</option>
-                  <option>Pixabay Content License</option>
-                  <option>Own footage (Kendi Çekimim)</option>
-                  <option>Unverified</option>
-                </select>
-              </div>
-            </div>
-            <label class="checkbox-container">
-              <input type="checkbox" id="asset-commercial" checked>
-              <span>Ticari kullanım uygunluğunu onaylıyorum</span>
-            </label>
-            <button class="btn btn-secondary btn-full" type="submit" style="margin-top:10px;">Dosyayı Arşive Kaydet</button>
-          </form>
         </div>
 
-        <!-- SAĞ PANEL: SESLENDİRME & SİNEMATİK KURGU -->
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">AI VOICEOVER</div>
-              <h3 class="panel-h3">Doğal Türkçe Seslendirme</h3>
+        <!-- 4'lü KPI Bandı -->
+        <div class="kpi-strip">
+          <div class="kpi-card" onclick="showView('ideas')">
+            <div class="kpi-meta"><span>FİKİR HAVUZU</span><span>↗</span></div>
+            <div class="kpi-value" id="stat-ideas">0</div>
+            <div class="kpi-sub">Fikirleri incele ve seç</div>
+          </div>
+          <div class="kpi-card" onclick="showView('scripts-vault')">
+            <div class="kpi-meta"><span>HAZIRLANAN SENARYO</span><span>↗</span></div>
+            <div class="kpi-value" id="stat-scripts">0</div>
+            <div class="kpi-sub">Arşivde filtrele ve düzenle</div>
+          </div>
+          <div class="kpi-card" onclick="showView('assets')">
+            <div class="kpi-meta"><span>MEDYA DOSYALARI</span><span>↗</span></div>
+            <div class="kpi-value" id="stat-assets">0</div>
+            <div class="kpi-sub">Pexels ve yerel çekimler</div>
+          </div>
+          <div class="kpi-card" onclick="showView('reports')" style="border-left:3px solid var(--status-warning);">
+            <div class="kpi-meta"><span>İNCELEME BEKLEYEN</span><span>↗</span></div>
+            <div class="kpi-value" id="stat-pending" style="color:var(--status-warning);">0</div>
+            <div class="kpi-sub">İnsan onayı bekleyen adımlar</div>
+          </div>
+        </div>
+
+        <!-- 6 Aşamalı Doğrusal İş Akışı (Reels-af & Remotion Esinlenmesi) -->
+        <div class="surface-panel">
+          <div class="panel-head">
+            <span class="panel-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              6 Aşamalı Üretim Pipeline'ı
+            </span>
+            <span class="badge badge-blue">Job ID: pipeline-active</span>
+          </div>
+          <div class="pipeline-track">
+            <div class="pipeline-step active" onclick="showView('ideas')">
+              <div class="pipeline-step-head"><span>STAGE 01</span><span>✓</span></div>
+              <div class="pipeline-step-name">1. Araştırma</div>
+              <div class="pipeline-step-status"><span class="badge-green">●</span> DDGS Web Taraması</div>
+            </div>
+            <div class="pipeline-separator">→</div>
+            <div class="pipeline-step active" onclick="showView('ideas')">
+              <div class="pipeline-step-head"><span>STAGE 02</span><span>✓</span></div>
+              <div class="pipeline-step-name">2. Yazma</div>
+              <div class="pipeline-step-status"><span class="badge-green">●</span> Hook & Sahneler</div>
+            </div>
+            <div class="pipeline-separator">→</div>
+            <div class="pipeline-step active" onclick="showView('editor')">
+              <div class="pipeline-step-head"><span>STAGE 03</span><span>✓</span></div>
+              <div class="pipeline-step-name">3. Doğrulama</div>
+              <div class="pipeline-step-status"><span class="badge-green">●</span> Kalite Puanı: 85/100</div>
+            </div>
+            <div class="pipeline-separator">→</div>
+            <div class="pipeline-step" onclick="showView('editor')">
+              <div class="pipeline-step-head"><span>STAGE 04</span><span>...</span></div>
+              <div class="pipeline-step-name">4. Seslendirme</div>
+              <div class="pipeline-step-status">Edge-TTS Doğal Ses</div>
+            </div>
+            <div class="pipeline-separator">→</div>
+            <div class="pipeline-step" onclick="showView('assets')">
+              <div class="pipeline-step-head"><span>STAGE 05</span><span>...</span></div>
+              <div class="pipeline-step-name">5. Medya Eşleme</div>
+              <div class="pipeline-step-status">Pexels Dikey Video</div>
+            </div>
+            <div class="pipeline-separator">→</div>
+            <div class="pipeline-step" onclick="showView('reports')">
+              <div class="pipeline-step-head"><span>STAGE 06</span><span>...</span></div>
+              <div class="pipeline-step-name">6. Render & Montaj</div>
+              <div class="pipeline-step-status">FFmpeg Sinematik MP4</div>
             </div>
           </div>
-          <div class="field-box">
-            <label class="field-label" for="tts-script-select">Senaryo Seç</label>
-            <select id="tts-script-select" class="field-input"></select>
+        </div>
+
+        <!-- 2 Kolon: Son Senaryolar + Ajan Roster -->
+        <div class="layout-2col">
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Son Hazırlanan Senaryolar</span>
+              <button class="btn btn-ghost btn-sm" onclick="showView('scripts-vault')">Tümü ↗</button>
+            </div>
+            <div id="recent-scripts" class="empty-state">Senaryolar yükleniyor...</div>
           </div>
-          <button class="btn btn-secondary btn-full" id="auto-tts-btn">🎙️ Seçili Senaryoyu Seslendir (Edge-TTS)</button>
-          <div id="tts-result" class="hint-text"></div>
 
-          <hr class="card-divider">
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Aktif Ajan Ekibi Durumu</span>
+              <button class="btn btn-ghost btn-sm" onclick="showView('agents')">Detaylı Ekip ↗</button>
+            </div>
+            <div id="agent-mini"></div>
+          </div>
+        </div>
+      </section>
 
-          <div class="eyebrow">SMART TIMELINE EXPORT</div>
-          <h3 class="panel-h3">Sinematik FFmpeg Kurgu Masası</h3>
-          <p class="muted-tag" style="margin-bottom:12px;">Sahneleri ses süresine kilitler, xfade geçişleri ve safe-zone altyazıyı ekler.</p>
+      <!-- ==================== 2. FİKİR & SENARYO LABORATUVARI ==================== -->
+      <section id="ideas" class="view-section">
+        <div class="layout-2col">
           
-          <div class="field-box">
-            <label class="field-label" for="export-script">Kurgulanacak Senaryo</label>
-            <select id="export-script" class="field-input"></select>
-          </div>
+          <!-- SOL PANEL: GELİŞMİŞ EDİTORYAL BRİEF FORMU -->
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Yeni İçerik Brief'i</span>
+              <span class="badge">AI Specialist Gateway</span>
+            </div>
+            <div class="panel-body">
+              <form id="generate-form">
+                
+                <div class="field-group">
+                  <label class="field-label" for="topic">Konu / Çekirdek Fikir *</label>
+                  <input id="topic" class="input-text" required placeholder="Örn: Boğaz vapurunda akşam çayı, İstanbul'da telaşsız bir an...">
+                </div>
 
-          <div class="checkbox-stack">
-            <label class="checkbox-container">
-              <input type="checkbox" id="export-subtitles" checked>
-              <span>TikTok Safe-Zone Altyazı Göm (Alttan 220px güvenli alan)</span>
-            </label>
-            <label class="checkbox-container">
-              <input type="checkbox" id="export-transitions" checked>
-              <span>Sinematik Geçiş Efektleri (Crossfade & Ken Burns Zoom)</span>
-            </label>
-          </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div class="field-group">
+                    <label class="field-label" for="language">İçerik Dili</label>
+                    <select id="language" class="input-select">
+                      <option value="tr" selected>Türkçe (tr-TR)</option>
+                      <option value="en">English (en-US)</option>
+                      <option value="ar">العربية (ar-SA)</option>
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="duration">Hedef Süre</label>
+                    <select id="duration" class="input-select">
+                      <option value="25">25 saniye (Hızlı TikTok)</option>
+                      <option value="35" selected>35 saniye (İdeal Reels Formatı)</option>
+                      <option value="45">45 saniye (Geniş Anlatı)</option>
+                    </select>
+                  </div>
+                </div>
 
-          <div class="button-stack" style="margin-top:16px;">
-            <button class="btn btn-primary btn-full" id="export-btn">▶ Sinematik Video Taslağı Oluştur</button>
-            <button class="btn btn-accent btn-full" id="full-auto-btn">⚡ Tek Tıkla Tam Otonom Üretim (Görselleri İndir + Seslendir + Kurgula)</button>
-          </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div class="field-group">
+                    <label class="field-label" for="format">Platform / Format</label>
+                    <select id="format" class="input-select">
+                      <option value="tiktok_reels" selected>TikTok & Reels (9:16)</option>
+                      <option value="youtube_shorts">YouTube Shorts</option>
+                      <option value="cinematic_story">Sakin Kültürel Belgesel</option>
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="target-audience">Hedef Kitle Segmenti</label>
+                    <select id="target-audience" class="input-select">
+                      <option value="discovery" selected>Keşif Arayanlar (Yeni Yerler)</option>
+                      <option value="nostalgia">Nostalji & Şehir Hafızası</option>
+                      <option value="international">Global Kültür Meraklıları</option>
+                    </select>
+                  </div>
+                </div>
 
-          <div id="export-result" class="export-feedback"></div>
-          <button class="btn btn-secondary btn-full" id="tiktok-pkg-btn" style="display:none;margin-top:10px;">📦 TikTok Yayın Paketini İndir (.ZIP)</button>
-        </div>
-      </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div class="field-group">
+                    <label class="field-label" for="tone">İçerik Tonu</label>
+                    <select id="tone" class="input-select">
+                      <option value="observant" selected>Gözlemci, Sıcak & Meraklı</option>
+                      <option value="reflective">Sakin & Düşündürücü (Slow Living)</option>
+                      <option value="poetic">Kentsel Şiirsel</option>
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="hook-model">Açılış (Hook) Yaklaşımı</label>
+                    <select id="hook-model" class="input-select">
+                      <option value="intrigue" selected>Merak Uyandıran İlk Gözlem</option>
+                      <option value="sensory">Atmosferik & Duyusal Giriş</option>
+                      <option value="direct_statement">Net & Çarpıcı Bir Tespit</option>
+                    </select>
+                  </div>
+                </div>
 
-      <!-- ARŞİVDEKİ MEDYALAR -->
-      <div class="panel" style="margin-top:24px;">
-        <div class="panel-header">
-          <div>
-            <div class="eyebrow">MEDYA KÜTÜPHANESİ</div>
-            <h3 class="panel-h3">Kayıtlı Medya Dosyaları</h3>
-          </div>
-        </div>
-        <div id="asset-list" class="item-stack empty">Henüz medya eklenmedi.</div>
-      </div>
-    </section>
+                <!-- Accordion: Gelişmiş Editoryal Parametreler -->
+                <details style="margin:8px 0 16px 0;background:var(--bg-subtle);border-radius:var(--radius-sm);padding:8px 10px;border:1px solid var(--border-subtle);">
+                  <summary style="font-size:11.5px;font-weight:600;cursor:pointer;user-select:none;color:var(--text-secondary);">⚙️ Gelişmiş Parametreler (CTA, Marka Sesi, Mod)</summary>
+                  <div style="padding-top:10px;">
+                    <div class="field-group">
+                      <label class="field-label" for="cta">Call to Action (CTA)</label>
+                      <input id="cta" class="input-text" placeholder="Örn: 'Sen İstanbul'da nerede yavaşlıyorsun?'">
+                    </div>
+                    <div class="field-group">
+                      <label class="field-label" for="quality-mode">Üretim Doğrulama Seviyesi</label>
+                      <select id="quality-mode" class="input-select">
+                        <option value="high" selected>Yüksek Kalite (Fact Check + Rights Audit)</option>
+                        <option value="fast">Hızlı Taslak (Düşük Token / Hızlı İskelet)</option>
+                      </select>
+                    </div>
+                  </div>
+                </details>
 
-    <!-- ==================== 6. RAPORLAR & VİDEO VAULT ==================== -->
-    <section id="reports" class="view">
-      <div class="view-intro">
-        <div class="eyebrow">STUDIO ANALYTICS & VAULT</div>
-        <h2 class="view-h2">Üretim Raporları & Video Vault.</h2>
-        <p class="view-p">Tamamlanan tüm iş akışlarını, kalite denetim puanlarını ve üretilen videoları dikey oynatıcı üzerinden inceleyin.</p>
-      </div>
-
-      <div class="toolbar-right">
-        <button class="btn btn-secondary" onclick="loadStudioReports()">🔄 Raporları Yenile</button>
-      </div>
-
-      <div id="reports-grid" class="reports-grid-layout">
-        <div class="empty">Raporlar yükleniyor...</div>
-      </div>
-    </section>
-
-    <!-- ==================== 7. 10 UZMAN AJAN OPERASYON PANELİ ==================== -->
-    <section id="agents" class="view">
-      <div class="view-intro">
-        <div class="eyebrow">PRODUCTION CREW · OPERASYON PANELİ</div>
-        <h2 class="view-h2">10 Uzman Hibrit Kadro.</h2>
-        <p class="view-p">Her ajanın görevi, güncel durumu, modeli ve iş akışı içindeki operasyonel çıktıları.</p>
-      </div>
-      <div class="agent-grid" id="agent-grid"></div>
-    </section>
-
-    <!-- ==================== 8. AYARLAR & API YÖNETİMİ ==================== -->
-    <section id="settings" class="view">
-      <div class="view-intro">
-        <div class="eyebrow">SYSTEM CONFIGURATION</div>
-        <h2 class="view-h2">Ayarlar & Model Bağlantıları.</h2>
-        <p class="view-desc">Google AI Studio, Groq ve Stok API anahtarlarınızı doğrudan bu panelden yönetin. Dosya açmanıza gerek kalmaz.</p>
-      </div>
-
-      <div class="two-col-layout">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">LLM PROVIDERS</div>
-              <h3 class="panel-h3">Yapay Zeka Motorları</h3>
+                <div style="display:flex;gap:10px;">
+                  <button type="submit" id="generate-btn" class="btn btn-primary" style="flex:1;">
+                    ✦ 10 Uzman Ekibi Çalıştır
+                  </button>
+                  <button type="button" id="stop-btn" class="btn btn-danger" style="display:none;" onclick="cancelActiveWorkflow()">
+                    ⏹ Durdur (Stop)
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
 
-          <form id="settings-form" onsubmit="saveSettings(event)">
-            <div class="field-box">
-              <label class="field-label" for="cfg-gemini-key">
-                <span>Google AI Studio API Key</span>
-                <span id="badge-gemini-status" class="badge">Bilinmiyor</span>
-              </label>
-              <input type="password" id="cfg-gemini-key" class="field-input font-mono" placeholder="AQ.Ab8RN...">
-              <small class="muted-tag">Google Gemini 2.5 Flash modelini besler.</small>
+          <!-- SAĞ PANEL: FİKİR HAVUZU -->
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Fikir Havuzu (Backlog)</span>
+              <span class="badge">Hızlı Ekle</span>
             </div>
-
-            <div class="field-box">
-              <label class="field-label" for="cfg-gemini-model">Gemini Model Seçimi</label>
-              <input id="cfg-gemini-model" class="field-input font-mono" value="gemini-2.5-flash">
-            </div>
-
-            <hr class="card-divider">
-
-            <div class="field-box">
-              <label class="field-label" for="cfg-groq-key">
-                <span>Groq API Key (Yedek Motor)</span>
-                <span id="badge-groq-status" class="badge">Bilinmiyor</span>
-              </label>
-              <input type="password" id="cfg-groq-key" class="field-input font-mono" placeholder="gsk_...">
-              <small class="muted-tag">Gemini kota aşımı durumunda otomatik devreye girer.</small>
-            </div>
-
-            <div class="field-box">
-              <label class="field-label" for="cfg-groq-model">Groq Model Seçimi</label>
-              <input id="cfg-groq-model" class="field-input font-mono" value="openai/gpt-oss-120b">
-            </div>
-
-            <button class="btn btn-primary btn-full" type="submit" style="margin-top:14px;">💾 Ayarları Kaydet ve Uygula</button>
-          </form>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">STOCK MEDIA & ENGINE</div>
-              <h3 class="panel-h3">Stok Video & Sistem Durumu</h3>
-            </div>
-          </div>
-
-          <div class="field-box">
-            <label class="field-label" for="cfg-pexels-key">
-              <span>Pexels API Key</span>
-              <span id="badge-pexels-status" class="badge">Opsiyonel</span>
-            </label>
-            <input type="password" id="cfg-pexels-key" class="field-input font-mono" placeholder="Pexels ücretsiz API anahtarı">
-          </div>
-
-          <div class="field-box">
-            <label class="field-label" for="cfg-pixabay-key">
-              <span>Pixabay API Key</span>
-              <span id="badge-pixabay-status" class="badge">Opsiyonel</span>
-            </label>
-            <input type="password" id="cfg-pixabay-key" class="field-input font-mono" placeholder="Pixabay ücretsiz API anahtarı">
-          </div>
-
-          <hr class="card-divider">
-
-          <div class="eyebrow">SİSTEM SAĞLIK KONTROLLERİ</div>
-          <div class="health-checklist" style="margin-top:10px;">
-            <div class="health-row">
-              <span>FFmpeg Video Motoru</span>
-              <span id="check-ffmpeg" class="badge badge-green">Kontrol Ediliyor...</span>
-            </div>
-            <div class="health-row">
-              <span>Edge-TTS Doğal Ses Motoru</span>
-              <span class="badge badge-green">✓ Hazır</span>
-            </div>
-            <div class="health-row">
-              <span>SQLite Veritabanı</span>
-              <span class="badge badge-green">✓ studio.sqlite3</span>
+            <div class="panel-body">
+              <form id="idea-form" style="display:flex;gap:8px;margin-bottom:12px;">
+                <input id="idea-title" class="input-text" placeholder="Aklına gelen yeni bir konu başlığı..." required>
+                <button type="submit" class="btn btn-secondary">Ekle +</button>
+              </form>
+              <div id="idea-list" class="empty-state">Henüz fikir eklenmedi.</div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- ==================== 9. YAYIN PERFORMANSI (ANALYTICS) ==================== -->
-    <section id="analytics" class="view">
-      <div class="view-intro">
-        <div class="eyebrow">LEARNING LOOP · METRİKLER</div>
-        <h2 class="view-h2">İçerikten Öğren.</h2>
-        <p class="view-desc">TikTok yayın sonuçlarını girin; sistem geçmiş video performansını yerel veritabanında saklasın.</p>
-      </div>
+        <!-- Canlı Ajan İş Akışı Paneli -->
+        <div id="generated-result"></div>
+      </section>
 
-      <div class="two-col-layout">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">YAYIN METRİKLERİ</div>
-              <h3 class="panel-h3">Performans Verisi Ekle</h3>
+      <!-- ==================== 3. 3-KOLONLU SAHNE DÜZENLEYİCİ & STORYBOARD (FCP DÜZENİ) ==================== -->
+      <section id="editor" class="view-section">
+        <div class="editor-workspace">
+          
+          <!-- Üst Bilgi & Metrik Barı -->
+          <div class="editor-control-strip">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="badge">SENARYO</span>
+              <select id="editor-script-select" class="input-select" style="width:260px;" onchange="loadScriptToEditor(this.value)"></select>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:14px;font-size:11.5px;">
+              <span>Kelime: <b id="live-word-count" style="font-family:var(--font-mono);">0</b></span>
+              <span>Süre: <b id="live-est-duration" style="font-family:var(--font-mono);">0s</b></span>
+              <span>Tempo: <b style="font-family:var(--font-mono);">~135 k/dk</b></span>
+              <span id="draft-status-badge" class="badge badge-green">Taslak: Güncel ✓</span>
+            </div>
+
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary btn-sm" onclick="saveCurrentScriptChanges()">💾 Kaydet</button>
+              <button class="btn btn-indigo btn-sm" onclick="triggerEditorFullProduction()">⚡ Kurgula & Montajla</button>
             </div>
           </div>
-          <form id="metrics-form">
-            <div class="field-box">
-              <label class="field-label" for="m-views">Görüntülenme Sayısı</label>
-              <input type="number" id="m-views" class="field-input" min="0" value="0">
-            </div>
-            <div class="field-box">
-              <label class="field-label" for="m-watch">Ortalama İzlenme Süresi (sn)</label>
-              <input type="number" id="m-watch" class="field-input" min="0" step="0.1" value="0">
-            </div>
-            <div class="field-grid-2">
-              <div class="field-box">
-                <label class="field-label" for="m-saves">Kaydetme</label>
-                <input type="number" id="m-saves" class="field-input" min="0" value="0">
+
+          <!-- 3 Kolonlu Masa -->
+          <div class="editor-3columns">
+            
+            <!-- Kolon 1: Sahneler Havuzu (Scene Bin) -->
+            <div class="col-scene-bin">
+              <div class="col-header">
+                <h3>Sahneler</h3>
+                <button class="btn btn-ghost btn-sm" onclick="addNewScene()">+ Sahne Ekle</button>
               </div>
-              <div class="field-box">
-                <label class="field-label" for="m-shares">Paylaşım</label>
-                <input type="number" id="m-shares" class="field-input" min="0" value="0">
+              <div id="editor-scenes-list" class="scene-scroll-list">
+                <div class="empty-state">Senaryo seçildiğinde sahneler listelenir.</div>
               </div>
             </div>
-            <div class="field-box">
-              <label class="field-label" for="m-followers">Kazanılan Takipçi</label>
-              <input type="number" id="m-followers" class="field-input" min="0" value="0">
-            </div>
-            <div class="field-box">
-              <label class="field-label" for="m-notes">Editoryal Notlar</label>
-              <textarea id="m-notes" class="field-input" rows="3" placeholder="Neden iyi/kötü performans gösterdi?"></textarea>
-            </div>
-            <button class="btn btn-primary btn-full" type="submit">Performansı Kaydet</button>
-          </form>
-        </div>
 
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="eyebrow">LOG & HISTORY</div>
-              <h3 class="panel-h3">Son Ölçümler</h3>
+            <!-- Kolon 2: 9:16 Dikey Mobil Canvas (On-Canvas Editör + Safe-Zone) -->
+            <div class="col-canvas-center">
+              <div class="phone-canvas-frame" id="mockup-screen">
+                
+                <!-- Remotion-Style TikTok Safe Zone Overlay -->
+                <div class="safe-zone-overlay">
+                  <span class="safe-zone-badge">TikTok Safe-Zone</span>
+                </div>
+
+                <!-- Arka Plan Görsel & Kamera Açısı -->
+                <div class="canvas-visual-bg" id="mockup-visual-preview">
+                  Kamera ve görsel plan bilgisi burada simüle edilir.
+                </div>
+
+                <!-- Doğrudan Ekranda Canlı Düzenlenebilir Altyazı -->
+                <div class="canvas-live-editor">
+                  <input id="canvas-on-screen-input" class="canvas-live-input" value="Ekranda görünecek başlık..." placeholder="Ekranda görünecek metni doğrudan burada yazın..." oninput="syncCanvasToInspector(this.value)">
+                </div>
+
+                <!-- TikTok Sağ İkonları Simülasyonu -->
+                <div class="canvas-tiktok-sidebar">
+                  <div class="tt-metric-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    <span>14.2K</span>
+                  </div>
+                  <div class="tt-metric-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+                    <span>682</span>
+                  </div>
+                  <div class="tt-metric-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+                    <span>2.4K</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Transport Bar (Play / Step) -->
+              <div class="canvas-transport-bar">
+                <button class="btn btn-secondary btn-sm" onclick="stepScene(-1)">⏮ Önceki</button>
+                <button class="btn btn-primary btn-sm" id="mockup-play-btn" onclick="toggleMockupPlay()">▶ Storyboard Oynat</button>
+                <button class="btn btn-secondary btn-sm" onclick="stepScene(1)">Sonraki ⏭</button>
+              </div>
+            </div>
+
+            <!-- Kolon 3: Sahne Inspector (Segmented Panel) -->
+            <div class="col-inspector-right">
+              <div class="col-header">
+                <h3>Sahne Inspector</h3>
+                <span id="inspector-scene-title" class="badge">Sahne 1</span>
+              </div>
+              <div id="inspector-body">
+                <div class="empty-state">Sol taraftan bir sahne seçin.</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Alt Strip: Final Cut Timeline -->
+          <div class="timeline-strip">
+            <div class="timeline-header">
+              <span>TIMELINE (SENKRON KİLİDİ)</span>
+              <span id="timeline-duration-label">Toplam: 00:00 / 00:35</span>
+            </div>
+            <div class="timeline-tracks">
+              <div id="timeline-scenes-track" class="timeline-track-scenes"></div>
+              <div class="timeline-track-audio" id="timeline-audio-label">🎙️ Edge-TTS Türkçe Seslendirme İzi (tr-TR-AhmetNeural)</div>
             </div>
           </div>
-          <div id="metrics-list" class="item-stack empty">Henüz performans verisi yok.</div>
+
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- FOOTER -->
-    <footer class="app-footer">
-      <div>ESKİ USUL AI STUDIO · v0.4.5 MASTER</div>
-      <div class="footer-center">"Hayat, ekrandan ibaret değil."</div>
-      <div>Local-First Creator Workstation</div>
-    </footer>
+      <!-- ==================== 4. SENARYO ARŞİVİ (TANSTACK-STYLE TABLO) ==================== -->
+      <section id="scripts-vault" class="view-section">
+        <div class="surface-panel">
+          <div class="panel-head">
+            <span class="panel-title">Senaryo Arşivi & Arama Masası</span>
+            <div class="filter-tabs">
+              <button class="filter-tab-btn active" onclick="setVaultStatusFilter('all', this)">Tümü</button>
+              <button class="filter-tab-btn" onclick="setVaultStatusFilter('approved', this)">✓ Onaylananlar</button>
+              <button class="filter-tab-btn" onclick="setVaultStatusFilter('pending', this)">İnceleme Bekleyenler</button>
+              <button class="filter-tab-btn" onclick="setVaultStatusFilter('revision', this)">Revizyon İstenenler</button>
+            </div>
+          </div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border-subtle);background:var(--bg-surface-hover);">
+            <input id="vault-search-input" class="input-text" placeholder="Senaryo başlığı veya giriş kancası içinde ara..." oninput="filterVaultScripts()">
+          </div>
 
+          <!-- Data Table -->
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:25%;">Başlık & Hook</th>
+                  <th style="width:12%;">Dil / Format</th>
+                  <th style="width:12%;">Kalite</th>
+                  <th style="width:15%;">Durum</th>
+                  <th style="width:14%;">Sahneler</th>
+                  <th style="width:22%;text-align:right;">Aksiyonlar</th>
+                </tr>
+              </thead>
+              <tbody id="vault-table-body">
+                <tr><td colspan="6" class="empty-state">Senaryolar yükleniyor...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 5. MEDYA KÜTÜPHANESİ & KURGU MASASI ==================== -->
+      <section id="assets" class="view-section">
+        <div class="layout-2col">
+          
+          <!-- SOL PANEL: PEXELS & PIXABAY ARAMA (ONAY KAPISI İLE) -->
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Pexels & Pixabay Dikey Video Bulucu</span>
+              <span class="badge badge-green">Pexels API Aktif</span>
+            </div>
+            <div class="panel-body">
+              <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <input id="stock-query" class="input-text" placeholder="Örn: Istanbul sunset boat, bosphorus seagulls, coffee...">
+                <button type="button" id="stock-search-btn" class="btn btn-primary">Ara 🔍</button>
+              </div>
+              <p class="field-hint" style="margin-bottom:12px;">Pexels üzerinden 1080x1920 dikey videolar bulunur. Yalnızca ticari kullanım lisanslı medyalar gösterilir.</p>
+              
+              <div id="stock-results" class="stock-search-results"></div>
+            </div>
+          </div>
+
+          <!-- SAĞ PANEL: YEREL MEDYA YÜKLEME & KÜTÜPHANE -->
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Kendi Medyanı Yükle</span>
+              <span class="badge">Yerel Dosya</span>
+            </div>
+            <div class="panel-body">
+              <form id="asset-form">
+                <div class="field-group">
+                  <label class="field-label" for="asset-file">Dosya Seç (MP4, JPG, PNG)</label>
+                  <input type="file" id="asset-file" class="input-text" required accept="video/*,image/*,audio/*">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div class="field-group">
+                    <label class="field-label" for="asset-kind">Tür</label>
+                    <select id="asset-kind" class="input-select">
+                      <option value="video">Video</option>
+                      <option value="image">Fotoğraf</option>
+                      <option value="audio">Müzik / Ses</option>
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="asset-license">Lisans Bildirimi</label>
+                    <select id="asset-license" class="input-select">
+                      <option>Own footage (Kendi Çekimim)</option>
+                      <option>Pexels Commercial License</option>
+                      <option>Pixabay Content License</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="margin:8px 0 14px 0;display:flex;align-items:center;gap:6px;">
+                  <input type="checkbox" id="asset-commercial" checked>
+                  <label for="asset-commercial" style="font-size:11.5px;color:var(--text-secondary);">Ticari kullanım hakkına sahip olduğumu onaylıyorum.</label>
+                </div>
+                <button type="submit" class="btn btn-secondary" style="width:100%;">Medya Kütüphanesine Kaydet</button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kayıtlı Medya Grid'i -->
+        <div class="surface-panel">
+          <div class="panel-head">
+            <span class="panel-title">Arşivdeki Ticari Onaylı Medyalar</span>
+            <span class="badge badge-green">Safe For Work</span>
+          </div>
+          <div id="asset-list" class="empty-state">Henüz medya eklenmedi.</div>
+        </div>
+      </section>
+
+      <!-- ==================== 6. VİDEO VAULT & RENDER PAKETİ ==================== -->
+      <section id="reports" class="view-section">
+        <div class="surface-panel">
+          <div class="panel-head">
+            <span class="panel-title">Video Vault & Üretim Raporları</span>
+            <button class="btn btn-secondary btn-sm" onclick="loadStudioReports()">🔄 Raporları Yenile</button>
+          </div>
+          <div id="reports-grid" style="padding:16px;">
+            <div class="empty-state">Raporlar yükleniyor...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 7. 10 UZMAN AJAN EKİBİ ==================== -->
+      <section id="agents" class="view-section">
+        <div class="surface-panel">
+          <div class="panel-head">
+            <span class="panel-title">10 Uzman Hibrit Operasyon Ekibi</span>
+            <span class="badge">Linear Table View</span>
+          </div>
+          <div id="agent-grid"></div>
+        </div>
+      </section>
+
+      <!-- ==================== 8. YAYIN PERFORMANSI (ANALYTICS) ==================== -->
+      <section id="analytics" class="view-section">
+        <div class="layout-2col">
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Performans Verisi Gir</span>
+              <span class="badge">TikTok / Reels Sonuçları</span>
+            </div>
+            <div class="panel-body">
+              <form id="metrics-form">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div class="field-group">
+                    <label class="field-label" for="m-views">İzlenme Sayısı</label>
+                    <input id="m-views" type="number" class="input-text" placeholder="Örn: 24500" required>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="m-watch">Ortalama İzleme (sn)</label>
+                    <input id="m-watch" type="number" step="0.1" class="input-text" placeholder="Örn: 18.4" required>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+                  <div class="field-group">
+                    <label class="field-label" for="m-saves">Kaydetme</label>
+                    <input id="m-saves" type="number" class="input-text" placeholder="Örn: 610">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="m-shares">Paylaşım</label>
+                    <input id="m-shares" type="number" class="input-text" placeholder="Örn: 320">
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="m-followers">Yeni Takipçi</label>
+                    <input id="m-followers" type="number" class="input-text" placeholder="Örn: 85">
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="m-notes">Performans Notları</label>
+                  <textarea id="m-notes" class="input-textarea" rows="2" placeholder="Hook iyi tuttu, 3. saniyede drop az..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Metriği Veritabanına Kaydet</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Geçmiş Yayın Verileri</span>
+            </div>
+            <div id="metrics-history" class="empty-state">Henüz performans verisi girilmedi.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 9. AYARLAR & API YÖNETİMİ ==================== -->
+      <section id="settings" class="view-section">
+        <div class="layout-2col">
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Yapay Zeka Motorları (LLM)</span>
+              <span class="badge badge-green">Aktif</span>
+            </div>
+            <div class="panel-body">
+              <form id="settings-form" onsubmit="saveSettings(event)">
+                <div class="field-group">
+                  <div class="field-label">
+                    <span>Google AI Studio API Key</span>
+                    <span id="badge-gemini-status" class="badge">Bilinmiyor</span>
+                  </div>
+                  <input type="password" id="cfg-gemini-key" class="input-text" style="font-family:var(--font-mono);" placeholder="AQ.Ab8RN...">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label" for="cfg-gemini-model">Gemini Model Seçimi</label>
+                  <input id="cfg-gemini-model" class="input-text" style="font-family:var(--font-mono);" value="gemini-2.5-flash">
+                </div>
+
+                <hr style="border:none;border-top:1px solid var(--border-subtle);margin:14px 0;">
+
+                <div class="field-group">
+                  <div class="field-label">
+                    <span>Groq API Key (Yedek Hızlı Motor)</span>
+                    <span id="badge-groq-status" class="badge">Bilinmiyor</span>
+                  </div>
+                  <input type="password" id="cfg-groq-key" class="input-text" style="font-family:var(--font-mono);" placeholder="gsk_...">
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label" for="cfg-groq-model">Groq Model Seçimi</label>
+                  <input id="cfg-groq-model" class="input-text" style="font-family:var(--font-mono);" value="openai/gpt-oss-120b">
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">💾 Ayarları Kaydet</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="surface-panel">
+            <div class="panel-head">
+              <span class="panel-title">Stok Medya & Sistem Sağlığı</span>
+            </div>
+            <div class="panel-body">
+              <div class="field-group">
+                <div class="field-label">
+                  <span>Pexels API Key</span>
+                  <span id="badge-pexels-status" class="badge">Opsiyonel</span>
+                </div>
+                <input type="password" id="cfg-pexels-key" class="input-text" style="font-family:var(--font-mono);" placeholder="Pexels API Key">
+              </div>
+
+              <div class="field-group">
+                <div class="field-label">
+                  <span>Pixabay API Key</span>
+                  <span id="badge-pixabay-status" class="badge">Opsiyonel</span>
+                </div>
+                <input type="password" id="cfg-pixabay-key" class="input-text" style="font-family:var(--font-mono);" placeholder="Pixabay API Key">
+              </div>
+
+              <hr style="border:none;border-top:1px solid var(--border-subtle);margin:14px 0;">
+
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Sistem Teşhis Kontrolleri</div>
+              <div style="display:flex;flex-direction:column;gap:6px;font-size:11.5px;">
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-subtle);">
+                  <span>FFmpeg 7/9 Video Motoru</span>
+                  <span id="check-ffmpeg" class="badge badge-green">✓ Hazır</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-subtle);">
+                  <span>Edge-TTS Doğal Türkçe Ses</span>
+                  <span class="badge badge-green">✓ Hazır</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;">
+                  <span>SQLite studio.sqlite3</span>
+                  <span class="badge badge-green">✓ Bağlı</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
   </main>
 </div>
 
-<div id="toast" class="toast"></div>
+<!-- ==================== 10. OPERASYONEL AJAN ÇEKMECESİ (SLIDE-OVER DRAWER) ==================== -->
+<div class="agent-drawer-backdrop" id="agent-drawer-backdrop" onclick="closeAgentDrawer()"></div>
+<div class="agent-drawer" id="agent-drawer">
+  <div class="panel-head" style="border-bottom:1px solid var(--border-default);">
+    <span class="panel-title" id="drawer-agent-title">Ajan Detayı</span>
+    <button class="btn btn-ghost btn-sm" onclick="closeAgentDrawer()">✕</button>
+  </div>
+  <div style="padding:16px;overflow-y:auto;flex:1;" id="drawer-agent-body">
+    Ajan bilgisi yükleniyor...
+  </div>
+</div>
+
+<!-- ==================== 11. SONNER-STYLE TOAST BİLDİRİMLERİ ==================== -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- JS CONTROLLER -->
 <script src="/static/app.js"></script>
 </body>
 </html>
