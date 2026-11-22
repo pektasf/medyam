@@ -449,6 +449,9 @@ function renderActiveSceneInspector() {
           <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="searchStockForCurrentScene()">🔍 Stok Ara (Pexels & Pixabay)</button>
           <button class="btn btn-indigo btn-sm" style="flex:1;" id="btn-gen-flux" onclick="generateFluxVisualForCurrentScene()">🎨 FLUX.1 AI Görsel Üret</button>
         </div>
+        <div style="margin-top:8px;padding:6px 8px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:#93C5FD;line-height:1.35;">
+          🛡️ <b>İçerik Güvenliği:</b> Pixabay ve Pexels sorguları telif ve yayın standartlarına uygun olarak güvenli arama (<code>safesearch=true</code>) modunda çalışmaktadır.
+        </div>
         <div id="inspector-stock-results" style="margin-top:8px;"></div>
       </div>
     `;
